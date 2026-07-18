@@ -83,10 +83,18 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1" },
       { title: "TabLife — Quản lý cuộc sống cá nhân" },
-      { name: "description", content: "Nền tảng quản lý task, project, plan, research, routine và finance trong một dashboard." },
+      {
+        name: "description",
+        content:
+          "Nền tảng quản lý task, project, plan, research, routine và finance trong một dashboard.",
+      },
       { name: "author", content: "Lovable" },
       { property: "og:title", content: "TabLife — Quản lý cuộc sống cá nhân" },
-      { property: "og:description", content: "Nền tảng quản lý task, project, plan, research, routine và finance trong một dashboard." },
+      {
+        property: "og:description",
+        content:
+          "Nền tảng quản lý task, project, plan, research, routine và finance trong một dashboard.",
+      },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary" },
       { name: "twitter:site", content: "@Lovable" },
@@ -98,15 +106,14 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       },
     ],
   }),
-  shellComponent: RootShell,
   component: RootComponent,
   notFoundComponent: NotFoundComponent,
   errorComponent: ErrorComponent,
 });
 
-function RootShell({ children }: { children: ReactNode }) {
+function RootDocument({ children }: { children: ReactNode }) {
   return (
-    <html lang="en" className="dark" data-theme="indigo">
+    <html lang="vi" className="dark" data-theme="indigo">
       <head>
         <HeadContent />
       </head>
@@ -117,6 +124,7 @@ function RootShell({ children }: { children: ReactNode }) {
     </html>
   );
 }
+
 
 function RootComponent() {
   const { queryClient } = Route.useRouteContext();
@@ -129,24 +137,31 @@ function RootComponent() {
   }, [loadData]);
 
   return (
-    <QueryClientProvider client={queryClient}>
-      <SidebarProvider>
-        <div className="flex min-h-screen w-full bg-background">
-          <AppSidebar />
-          <SidebarInset className="flex min-w-0 flex-1 flex-col">
-            <Topbar />
-            <main className="flex-1 overflow-x-hidden">
-              {(isLoading || error) && (
-                <div className={`border-b px-4 py-2 text-sm ${error ? "border-destructive/30 bg-destructive/10 text-destructive" : "border-border bg-muted/40 text-muted-foreground"}`}>
-                  {error ? `Không tải được dữ liệu API: ${error}` : "Đang tải dữ liệu từ API..."}
-                </div>
-              )}
-              <Outlet />
-            </main>
-          </SidebarInset>
-        </div>
-        <Toaster richColors position="top-right" />
-      </SidebarProvider>
-    </QueryClientProvider>
+    <RootDocument>
+      <QueryClientProvider client={queryClient}>
+        <SidebarProvider>
+          <div className="flex min-h-screen w-full bg-background">
+            <AppSidebar />
+            <SidebarInset className="flex min-w-0 flex-1 flex-col">
+              <Topbar />
+              <main className="flex-1 overflow-x-hidden">
+                {isLoading && (
+                  <div className="border-b border-border bg-muted/40 px-4 py-2 text-sm text-muted-foreground">
+                    Đang khởi tạo dữ liệu UI mẫu...
+                  </div>
+                )}
+                {error && (
+                  <div className="border-b border-destructive/30 bg-destructive/10 px-4 py-2 text-sm text-destructive">
+                    {error}
+                  </div>
+                )}
+                <Outlet />
+              </main>
+            </SidebarInset>
+          </div>
+          <Toaster richColors position="top-right" />
+        </SidebarProvider>
+      </QueryClientProvider>
+    </RootDocument>
   );
 }

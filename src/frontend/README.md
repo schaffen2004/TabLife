@@ -7,12 +7,19 @@
 
 This project uses Vite `7`, which does not run on Node `18`.
 
-## Run locally
+## Run on a server
 
 ```bash
 nvm use
 npm install
-npm run dev
+npm run build
+HOST=0.0.0.0 PORT=3000 npm run start
 ```
-Username: laphv494_db_user
-Password: MAdL7OvCQObNWlkD
+
+## Run in development and allow access from another machine
+
+```bash
+nvm use
+npm install
+PORT=3000 npm run dev
+```

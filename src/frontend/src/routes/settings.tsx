@@ -14,17 +14,32 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { toast } from "sonner";
-import { api, type AppSettings } from "@/lib/api";
 
 export const Route = createFileRoute("/settings")({
   head: () => ({
     meta: [
       { title: "Cài đặt — TabLife" },
-      { name: "description", content: "Quản lý tài khoản, thông báo, Telegram và giao diện." },
+      { name: "description", content: "Quản lý thông báo, Telegram và giao diện." },
     ],
   }),
   component: SettingsPage,
 });
+
+type AppSettings = {
+  notification: boolean;
+  deadline: boolean;
+  routine: boolean;
+  finance: boolean;
+  deadline_day_time: string;
+  deadline_hour_time: string;
+  routine_time: string;
+  finance_time: string;
+  language: string;
+  chat_id: number | string;
+  token: string;
+};
+
+const SETTINGS_STORAGE_KEY = "tablife-ui-settings";
 
 const defaultSettings: AppSettings = {
   notification: false,
@@ -93,7 +108,7 @@ function ToggleRow({
   );
 }
 
-function normalizeSettings(settings: AppSettings): AppSettings {
+function normalizeSettings(settings: Partial<AppSettings>): AppSettings {
   return {
     ...defaultSettings,
     ...settings,
@@ -106,46 +121,41 @@ function normalizeSettings(settings: AppSettings): AppSettings {
   };
 }
 
+function loadStoredSettings() {
+  if (typeof window === "undefined") return defaultSettings;
+
+  try {
+    const raw = window.localStorage.getItem(SETTINGS_STORAGE_KEY);
+    if (!raw) return defaultSettings;
+    return normalizeSettings(JSON.parse(raw) as Partial<AppSettings>);
+  } catch {
+    return defaultSettings;
+  }
+}
+
 function SettingsPage() {
   const [settings, setSettings] = useState<AppSettings>(defaultSettings);
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
-  const [loadError, setLoadError] = useState<string | null>(null);
   const isTelegramConnected = Boolean(settings.token && settings.chat_id);
   const notificationDisabled = isLoading || isSaving || !settings.notification;
 
   useEffect(() => {
-    let mounted = true;
-
-    api
-      .getSettings()
-      .then((loadedSettings) => {
-        if (!mounted) return;
-        setSettings(normalizeSettings(loadedSettings));
-        setLoadError(null);
-      })
-      .catch((error) => {
-        if (!mounted) return;
-        setLoadError(error instanceof Error ? error.message : "Không tải được file cài đặt");
-      })
-      .finally(() => {
-        if (mounted) setIsLoading(false);
-      });
-
-    return () => {
-      mounted = false;
-    };
+    setSettings(loadStoredSettings());
+    setIsLoading(false);
   }, []);
 
   const saveSettings = async (nextSettings: AppSettings, showSuccess = false) => {
     setIsSaving(true);
     try {
-      const savedSettings = await api.updateSettings(nextSettings);
-      setSettings(normalizeSettings(savedSettings));
-      if (showSuccess) toast.success("Đã cập nhật setting.yaml");
+      if (typeof window !== "undefined") {
+        window.localStorage.setItem(SETTINGS_STORAGE_KEY, JSON.stringify(nextSettings));
+      }
+      setSettings(normalizeSettings(nextSettings));
+      if (showSuccess) toast.success("Đã lưu cài đặt giao diện");
       return true;
-    } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Không cập nhật được setting.yaml");
+    } catch {
+      toast.error("Không lưu được cài đặt trên trình duyệt này");
       return false;
     } finally {
       setIsSaving(false);
@@ -199,14 +209,8 @@ function SettingsPage() {
       {isLoading && (
         <Card>
           <CardContent className="p-4 text-sm text-muted-foreground">
-            Đang tải cài đặt từ setting.yaml...
+            Đang tải cài đặt cục bộ...
           </CardContent>
-        </Card>
-      )}
-
-      {loadError && (
-        <Card className="border-destructive/30 bg-destructive/5">
-          <CardContent className="p-4 text-sm text-destructive">{loadError}</CardContent>
         </Card>
       )}
 
@@ -219,7 +223,7 @@ function SettingsPage() {
         />
         <ToggleRow
           label="Task làm hôm nay"
-          hint={`Gửi Telegram danh sách task làm hôm nay lúc ${settings.deadline_day_time}`}
+          hint={`Mô phỏng nhắc việc lúc ${settings.deadline_day_time}`}
           checked={settings.deadline}
           disabled={isLoading || isSaving}
           onCheckedChange={(checked) => updateSetting("deadline", checked, true)}
@@ -230,9 +234,9 @@ function SettingsPage() {
               <Clock className="h-4 w-4" />
             </div>
             <div className="min-w-0">
-              <Label htmlFor="deadline-day-time">Giờ gửi Telegram task làm hôm nay</Label>
+              <Label htmlFor="deadline-day-time">Giờ nhắc task hôm nay</Label>
               <p className="text-xs text-muted-foreground">
-                Chọn mốc giờ sắp tới nếu muốn nhận trong hôm nay; giờ đã qua sẽ áp dụng từ ngày mai.
+                Đây là cấu hình UI demo, không gửi thông báo ra backend.
               </p>
             </div>
           </div>
@@ -266,7 +270,7 @@ function SettingsPage() {
         </div>
         <ToggleRow
           label="Cảnh báo tài chính"
-          hint={`Kiểm tra khi chi tháng này đạt từ 80% tổng tiền, lúc ${settings.finance_time}`}
+          hint={`Mô phỏng kiểm tra lúc ${settings.finance_time}`}
           checked={settings.finance}
           disabled={isLoading || isSaving}
           onCheckedChange={(checked) => updateSetting("finance", checked, true)}
@@ -284,7 +288,11 @@ function SettingsPage() {
         </div>
       </SectionCard>
 
-      <SectionCard icon={Send} title="Telegram API" description="Nhận thông báo qua Telegram bot">
+      <SectionCard
+        icon={Send}
+        title="Telegram UI"
+        description="Giữ lại form cấu hình để demo giao diện"
+      >
         <div className="grid gap-4 sm:grid-cols-2">
           <div className="space-y-2">
             <Label>Bot Token</Label>
@@ -310,14 +318,15 @@ function SettingsPage() {
               className={`h-2 w-2 rounded-full ${isTelegramConnected ? "bg-success" : "bg-muted-foreground"}`}
             />
             <span className="text-sm">
-              Trạng thái: <strong>{isTelegramConnected ? "Đã kết nối" : "Chưa cấu hình"}</strong>
+              Trạng thái:{" "}
+              <strong>{isTelegramConnected ? "Đã nhập dữ liệu demo" : "Chưa cấu hình"}</strong>
             </span>
           </div>
           <div className="flex gap-2">
             <Button
               variant="outline"
               size="sm"
-              onClick={() => toast.success("Đã gửi thông báo thử nghiệm")}
+              onClick={() => toast.success("Đã mô phỏng gửi thông báo")}
             >
               Gửi thử
             </Button>

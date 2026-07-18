@@ -12,7 +12,6 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
-import { api } from "@/lib/api";
 import { useStore } from "@/lib/store";
 import {
   ResponsiveContainer,
@@ -93,41 +92,15 @@ function RoutinePage() {
   );
 
   useEffect(() => {
-    let active = true;
-
-    if (routines.length === 0) {
-      setWeekDoneCounts(Array(7).fill(0));
-      return () => {
-        active = false;
-      };
-    }
-
-    const completedByDate = new Map(weekDateKeys.map((date) => [date, 0]));
-    Promise.all(
-      routines.map((routine) =>
-        api.getRoutineCheckins(routine.id, weekDateKeys[0], weekDateKeys[weekDateKeys.length - 1]),
-      ),
-    )
-      .then((routineCheckins) => {
-        if (!active) return;
-
-        routineCheckins.flat().forEach((checkin) => {
-          completedByDate.set(
-            checkin.completed_on,
-            (completedByDate.get(checkin.completed_on) ?? 0) + 1,
-          );
-        });
-        setWeekDoneCounts(weekDateKeys.map((date) => completedByDate.get(date) ?? 0));
-      })
-      .catch(() => {
-        if (!active) return;
-        toast.error("Không tải được dữ liệu routine của tuần này");
-        setWeekDoneCounts(Array(7).fill(0));
+    const counts = Array(7).fill(0);
+    routines.forEach((routine) => {
+      routine.weekHistory.forEach((isDone, index) => {
+        if (weekDateKeys[index] && isDone) {
+          counts[index] += 1;
+        }
       });
-
-    return () => {
-      active = false;
-    };
+    });
+    setWeekDoneCounts(counts);
   }, [routines, weekDateKeys]);
 
   const moveWeek = (offset: number) => {
