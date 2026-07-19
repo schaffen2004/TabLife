@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import asyncio
 import json
+import logging
 import os
 import urllib.error
 import urllib.request
@@ -20,6 +21,8 @@ DEFAULT_TIMEZONE = os.environ.get("TABLIFE_TIMEZONE", "Asia/Ho_Chi_Minh")
 DEFAULT_DEADLINE_DAY_TIME = time(9, 0)
 DEFAULT_ROUTINE_TIME = time(23, 0)
 DEFAULT_FINANCE_TIME = time(20, 0)
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass
@@ -274,6 +277,24 @@ def _format_date_value(value: Any) -> str:
     return str(value)
 
 
+def _log_due_notification(
+    notification_type: str,
+    target_date: date,
+    notify_time: time,
+    message: str,
+    item_count: int | None = None,
+) -> None:
+    suffix = f", item_count={item_count}" if item_count is not None else ""
+    logger.info(
+        "Notification due: type=%s, target_date=%s, notify_time=%s%s\n%s",
+        notification_type,
+        target_date.isoformat(),
+        notify_time.strftime("%H:%M"),
+        suffix,
+        message,
+    )
+
+
 def _build_today_tasks_message(tasks: list[dict[str, Any]], target_date: date) -> str:
     lines = [
         "🧭 Today task",
@@ -287,6 +308,9 @@ def _build_today_tasks_message(tasks: list[dict[str, Any]], target_date: date) -
         lines.append(f"   Priority: {task['priority']}")
         lines.append(f"   Start: {_format_date_value(task['start_at'])}")
         lines.append(f"   Deadline: {_format_date_value(task['deadline'])}")
+
+    if not tasks:
+        lines.append("No open tasks for today.")
 
     if len(tasks) > 10:
         lines.append(f"More tasks: {len(tasks) - 10}")
@@ -304,6 +328,9 @@ def _build_routine_message(routines: list[dict[str, Any]], target_date: date) ->
 
     for index, routine in enumerate(routines[:15], start=1):
         lines.append(f"{index}. {routine['name']}")
+
+    if not routines:
+        lines.append("All routines are completed.")
 
     if len(routines) > 15:
         lines.append(f"More routines: {len(routines) - 15}")
@@ -324,6 +351,9 @@ def _build_tomorrow_tasks_message(tasks: list[dict[str, Any]], target_date: date
         lines.append(f"   Priority: {task['priority']}")
         lines.append(f"   Start: {_format_date_value(task['start_at'])}")
         lines.append(f"   Deadline: {_format_date_value(task['deadline'])}")
+
+    if not tasks:
+        lines.append("No planned tasks for tomorrow.")
 
     if len(tasks) > 10:
         lines.append(f"More tasks: {len(tasks) - 10}")
@@ -415,14 +445,20 @@ def run_today_tasks_notification(now: datetime | None = None) -> int:
     target_date = now.date()
     state_key = _today_tasks_state_key(target_date, settings.today_task_time)
     state = _load_state()
-    if state_key in state:
+    if state.get(state_key, "").startswith("sent:"):
         return 0
 
     tasks = _get_today_unfinished_tasks(target_date)
-    if not tasks:
-        return 0
 
-    send_telegram_message(_build_today_tasks_message(tasks, target_date), settings)
+    message = _build_today_tasks_message(tasks, target_date)
+    _log_due_notification(
+        "today_task",
+        target_date,
+        settings.today_task_time,
+        message,
+        item_count=len(tasks),
+    )
+    send_telegram_message(message, settings)
     state[state_key] = f"sent:{now.isoformat(timespec='seconds')}"
     _save_state(state)
     return 1
@@ -442,14 +478,20 @@ def run_routine_notification(now: datetime | None = None) -> int:
     target_date = now.date()
     state_key = _routine_state_key(target_date, settings.daily_routine_report_time)
     state = _load_state()
-    if state_key in state:
+    if state.get(state_key, "").startswith("sent:"):
         return 0
 
     routines = _get_incomplete_routines(target_date)
-    if not routines:
-        return 0
 
-    send_telegram_message(_build_routine_message(routines, target_date), settings)
+    message = _build_routine_message(routines, target_date)
+    _log_due_notification(
+        "daily_routine_report",
+        target_date,
+        settings.daily_routine_report_time,
+        message,
+        item_count=len(routines),
+    )
+    send_telegram_message(message, settings)
     state[state_key] = f"sent:{now.isoformat(timespec='seconds')}"
     _save_state(state)
     return 1
@@ -469,14 +511,20 @@ def run_tomorrow_tasks_notification(now: datetime | None = None) -> int:
     target_date = now.date() + timedelta(days=1)
     state_key = _tomorrow_tasks_state_key(target_date, settings.schedule_for_tomorrow_time)
     state = _load_state()
-    if state_key in state:
+    if state.get(state_key, "").startswith("sent:"):
         return 0
 
     tasks = _get_tomorrow_tasks(target_date)
-    if not tasks:
-        return 0
 
-    send_telegram_message(_build_tomorrow_tasks_message(tasks, target_date), settings)
+    message = _build_tomorrow_tasks_message(tasks, target_date)
+    _log_due_notification(
+        "schedule_for_tomorrow",
+        target_date,
+        settings.schedule_for_tomorrow_time,
+        message,
+        item_count=len(tasks),
+    )
+    send_telegram_message(message, settings)
     state[state_key] = f"sent:{now.isoformat(timespec='seconds')}"
     _save_state(state)
     return 1
@@ -496,14 +544,21 @@ def run_finance_notification(now: datetime | None = None) -> int:
     target_date = now.date()
     state_key = _finance_state_key_for_date(target_date, settings.finance_report_time)
     state = _load_state()
-    if state_key in state:
+    if state.get(state_key, "").startswith("sent:"):
         return 0
 
     summary = _get_daily_finance(target_date)
     total_income = summary["total_income"]
     total_expense = summary["total_expense"]
 
-    send_telegram_message(_build_finance_message(target_date, total_income, total_expense), settings)
+    message = _build_finance_message(target_date, total_income, total_expense)
+    _log_due_notification(
+        "finance_alert",
+        target_date,
+        settings.finance_report_time,
+        message,
+    )
+    send_telegram_message(message, settings)
     state[state_key] = f"sent:{now.isoformat(timespec='seconds')}"
     _save_state(state)
     return 1
@@ -519,10 +574,13 @@ def run_all_notifications(now: datetime | None = None) -> int:
 
 
 async def telegram_notification_worker(interval_seconds: int = 10) -> None:
+    logger.info("Telegram notification worker started with interval=%ss", max(interval_seconds, 1))
     while True:
         try:
-            await asyncio.to_thread(run_all_notifications)
+            sent_count = await asyncio.to_thread(run_all_notifications)
+            if sent_count:
+                logger.info("Notification cycle completed: sent_count=%s", sent_count)
         except Exception as exc:
-            print(f"Telegram notification error: {exc}")
+            logger.exception("Telegram notification error: %s", exc)
 
         await asyncio.sleep(max(interval_seconds, 1))

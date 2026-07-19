@@ -16,6 +16,7 @@ import {
 import { toast } from "sonner";
 import {
   fetchSettings,
+  sendTestTelegramMessage,
   type BackendSettings,
   updateSettings as updateSettingsApi,
 } from "@/lib/api";
@@ -135,6 +136,7 @@ function SettingsPage() {
   const [settings, setSettings] = useState<AppSettings>(defaultSettings);
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
+  const [isSendingTest, setIsSendingTest] = useState(false);
   const isTelegramConnected = Boolean(settings.token && settings.chat_id);
   const notificationDisabled = isLoading || isSaving || !settings.notification;
 
@@ -251,6 +253,38 @@ function SettingsPage() {
     }
   };
 
+  const sendTestNotification = async () => {
+    const token = settings.token.trim();
+    const chatId = String(settings.chat_id).trim();
+
+    if (!token || !chatId) {
+      toast.error("Cần nhập Bot Token và Chat ID trước khi gửi thử");
+      return;
+    }
+
+    setIsSendingTest(true);
+    try {
+      const saved = await saveSettings({ ...settings, token, chat_id: chatId }, false, {
+        token,
+        chat_id: chatId,
+      });
+      if (!saved) {
+        return;
+      }
+
+      await sendTestTelegramMessage(
+        "TabLife test notification\n\nNeu ban nhan duoc tin nhan nay, ket noi Telegram da hoat dong.",
+      );
+      toast.success("Đã gửi thông báo thử tới Telegram");
+    } catch (error) {
+      toast.error(
+        error instanceof Error ? error.message : "Không gửi được thông báo thử tới Telegram",
+      );
+    } finally {
+      setIsSendingTest(false);
+    }
+  };
+
   return (
     <div className="mx-auto max-w-4xl space-y-5 p-4 lg:p-6">
       <div>
@@ -287,7 +321,9 @@ function SettingsPage() {
             </div>
             <div className="min-w-0">
               <Label htmlFor="deadline-day-time">Giờ nhắc task hôm nay</Label>
-              <p className="text-xs text-muted-foreground">Thay đổi sẽ được lưu trực tiếp vào backend.</p>
+              <p className="text-xs text-muted-foreground">
+                Thay đổi sẽ được lưu trực tiếp vào backend.
+              </p>
             </div>
           </div>
           <div className="w-full sm:w-40">
@@ -325,9 +361,7 @@ function SettingsPage() {
               type="time"
               value={settings.schedule_for_tomorrow_time}
               disabled={notificationDisabled || !settings.schedule_for_tomorrow}
-              onChange={(event) =>
-                updateSetting("schedule_for_tomorrow_time", event.target.value)
-              }
+              onChange={(event) => updateSetting("schedule_for_tomorrow_time", event.target.value)}
             />
           </div>
         </div>
@@ -407,9 +441,10 @@ function SettingsPage() {
             <Button
               variant="outline"
               size="sm"
-              onClick={() => toast.success("Đã mô phỏng gửi thông báo")}
+              disabled={isLoading || isSaving || isSendingTest || !isTelegramConnected}
+              onClick={sendTestNotification}
             >
-              Gửi thử
+              {isSendingTest ? "Đang gửi..." : "Gửi thử"}
             </Button>
             <Switch
               checked={settings.notification}

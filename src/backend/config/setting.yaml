@@ -4,7 +4,7 @@ setting:
   daily_routine_report: True
   finance_alert: True
   schedule_for_tomorrow: True
-  today_task_time: 15:12
+  today_task_time: 15:26
   daily_routine_report_time: 12:17
   finance_report_time: 12:18
   schedule_for_tomorrow_time: 23:00

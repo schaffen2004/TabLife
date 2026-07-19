@@ -853,3 +853,10 @@ export async function updateSettings(patch: Partial<BackendSettings>): Promise<B
     body: JSON.stringify(patch),
   });
 }
+
+export async function sendTestTelegramMessage(message: string): Promise<{ sent: boolean }> {
+  return apiRequest<{ sent: boolean }>("/notification/telegram/send", {
+    method: "POST",
+    body: JSON.stringify({ message }),
+  });
+}

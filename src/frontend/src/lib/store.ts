@@ -8,12 +8,6 @@ import {
   type Subtopic,
   type Routine,
   type Transaction,
-  seedTasks,
-  seedProjects,
-  seedPlans,
-  seedResearchTopics,
-  seedRoutines,
-  seedTransactions,
 } from "./mock-data";
 import {
   createPlan as createPlanApi,
@@ -105,46 +99,13 @@ interface State {
   resetData: () => void;
 }
 
-const createInitialTasks = () =>
-  seedTasks.map((task) => ({
-    ...task,
-    steps: task.steps.map((step) => ({ ...step })),
-    links: task.links ? [...task.links] : undefined,
-  }));
-
-const createInitialProjects = () =>
-  seedProjects.map((project) => ({
-    ...project,
-    stages: project.stages.map((stage) => ({ ...stage })),
-  }));
-
-const createInitialPlans = () =>
-  seedPlans.map((plan) => ({
-    ...plan,
-    requirements: plan.requirements.map((requirement) => ({ ...requirement })),
-  }));
-
-const createInitialResearch = () =>
-  seedResearchTopics.map((topic) => ({
-    ...topic,
-    subtopics: topic.subtopics.map((subtopic) => ({ ...subtopic })),
-  }));
-
-const createInitialRoutines = () =>
-  seedRoutines.map((routine) => ({
-    ...routine,
-    weekHistory: [...routine.weekHistory],
-  }));
-
-const createInitialTransactions = () => seedTransactions.map((transaction) => ({ ...transaction }));
-
 const initialCounters: Counters = {
-  task: Math.max(0, ...seedTasks.map((task) => task.id)) + 1,
-  project: Math.max(0, ...seedProjects.map((project) => project.id)) + 1,
-  plan: Math.max(0, ...seedPlans.map((plan) => plan.id)) + 1,
-  research: Math.max(0, ...seedResearchTopics.map((topic) => topic.id)) + 1,
-  routine: Math.max(0, ...seedRoutines.map((routine) => routine.id)) + 1,
-  transaction: Math.max(0, ...seedTransactions.map((transaction) => transaction.id)) + 1,
+  task: 1,
+  project: 1,
+  plan: 1,
+  research: 1,
+  routine: 1,
+  transaction: 1,
 };
 
 function completionPercent(doneCount: number, totalCount: number) {
@@ -166,16 +127,13 @@ function applyProjectProgress(projects: Project[], tasks: Task[]): Project[] {
 }
 
 function buildInitialState() {
-  const tasks = createInitialTasks();
-  const projects = applyProjectProgress(createInitialProjects(), tasks);
-
   return {
-    tasks,
-    projects,
-    plans: createInitialPlans(),
-    research: createInitialResearch(),
-    routines: createInitialRoutines(),
-    transactions: createInitialTransactions(),
+    tasks: [] as Task[],
+    projects: [] as Project[],
+    plans: [] as Plan[],
+    research: [] as ResearchTopic[],
+    routines: [] as Routine[],
+    transactions: [] as Transaction[],
     counters: { ...initialCounters },
   };
 }
@@ -235,14 +193,12 @@ export const useStore = create<State>()((set, get) => ({
         error: undefined,
       });
     } catch (error) {
-      const snapshot = buildInitialState();
       set({
-        ...snapshot,
         isLoading: false,
         error:
           error instanceof Error
-            ? `Không tải được dữ liệu API, đang dùng dữ liệu mẫu. ${error.message}`
-            : "Không tải được dữ liệu API, đang dùng dữ liệu mẫu.",
+            ? `Không tải được dữ liệu từ API. ${error.message}`
+            : "Không tải được dữ liệu từ API.",
       });
     }
   },
