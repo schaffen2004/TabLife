@@ -5,15 +5,27 @@ from typing import Any
 
 
 SETTINGS_FILE = Path(__file__).resolve().parents[1] / "config" / "setting.yaml"
+LEGACY_KEY_MAP = {
+    "deadline": "today_task",
+    "routine": "daily_routine_report",
+    "finance": "finance_alert",
+    "schedule_tomorrow": "schedule_for_tomorrow",
+    "deadline_day_time": "today_task_time",
+    "deadline_hour_time": "schedule_for_tomorrow_time",
+    "routine_time": "daily_routine_report_time",
+    "finance_time": "finance_alert_time",
+}
 SETTINGS_ORDER = [
     "notification",
-    "deadline",
-    "routine",
-    "finance",
-    "deadline_day_time",
-    "deadline_hour_time",
-    "routine_time",
-    "finance_time",
+    "today_task",
+    "daily_routine_report",
+    "finance_alert",
+    "schedule_for_tomorrow",
+    "today_task_time",
+    "daily_routine_report_time",
+    "finance_alert_time",
+    "schedule_for_tomorrow_time",
+    "timezone",
     "language",
     "chat_id",
     "token",
@@ -55,7 +67,11 @@ def load_settings() -> dict[str, Any]:
         if separator:
             settings[key.strip()] = parse_scalar(value)
 
-    return settings
+    normalized: dict[str, Any] = {}
+    for key, value in settings.items():
+        normalized[LEGACY_KEY_MAP.get(key, key)] = value
+
+    return normalized
 
 
 def format_scalar(value: Any) -> str:
@@ -71,4 +87,3 @@ def write_settings(settings: dict[str, Any]) -> None:
     content = ["setting:"]
     content.extend(f"  {key}: {format_scalar(settings[key])}" for key in keys)
     SETTINGS_FILE.write_text("\n".join(content) + "\n", encoding="utf-8")
-

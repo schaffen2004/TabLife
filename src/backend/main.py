@@ -13,7 +13,7 @@ BACKEND_DIR = Path(__file__).resolve().parent
 if str(BACKEND_DIR) not in sys.path:
     sys.path.insert(0, str(BACKEND_DIR))
 
-from api import finance, plans, projects, research, routines, settings, stages, tasks
+from api import finance, notification, plans, projects, research, routines, settings, stages, tasks
 from db import close_pool
 from services.telegram_notifications import telegram_notification_worker
 
@@ -48,6 +48,7 @@ app.include_router(plans.router, prefix="/api")
 app.include_router(routines.router, prefix="/api")
 app.include_router(finance.router, prefix="/api")
 app.include_router(settings.router, prefix="/api")
+app.include_router(notification.router, prefix="/api")
 
 
 @app.get("/health")

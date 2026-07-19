@@ -6,17 +6,17 @@ import os
 import urllib.error
 import urllib.request
 from dataclasses import dataclass
-from datetime import date, datetime, time
+from datetime import date, datetime, time, timedelta
 from pathlib import Path
 from typing import Any
-from zoneinfo import ZoneInfo
+from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 from services.settings_service import load_settings
 
 
 BACKEND_DIR = Path(__file__).resolve().parents[1]
 STATE_FILE = BACKEND_DIR / "config" / "telegram_notification_state.json"
-TIMEZONE = ZoneInfo(os.environ.get("TABLIFE_TIMEZONE", "Asia/Ho_Chi_Minh"))
+DEFAULT_TIMEZONE = os.environ.get("TABLIFE_TIMEZONE", "Asia/Ho_Chi_Minh")
 DEFAULT_DEADLINE_DAY_TIME = time(9, 0)
 DEFAULT_ROUTINE_TIME = time(23, 0)
 DEFAULT_FINANCE_TIME = time(20, 0)
@@ -26,14 +26,26 @@ FINANCE_WARNING_RATIO = 0.8
 @dataclass
 class TelegramSettings:
     notification: bool = False
-    deadline: bool = False
-    routine: bool = False
-    finance: bool = False
-    deadline_day_time: time = DEFAULT_DEADLINE_DAY_TIME
-    routine_time: time = DEFAULT_ROUTINE_TIME
-    finance_time: time = DEFAULT_FINANCE_TIME
+    today_task: bool = False
+    daily_routine_report: bool = False
+    finance_alert: bool = False
+    schedule_for_tomorrow: bool = False
+    today_task_time: time = DEFAULT_DEADLINE_DAY_TIME
+    daily_routine_report_time: time = DEFAULT_ROUTINE_TIME
+    finance_alert_time: time = DEFAULT_FINANCE_TIME
+    schedule_for_tomorrow_time: time = DEFAULT_ROUTINE_TIME
+    timezone: ZoneInfo = ZoneInfo(DEFAULT_TIMEZONE)
     chat_id: str = ""
     token: str = ""
+
+
+def get_timezone(settings: dict[str, Any] | None = None) -> ZoneInfo:
+    raw_settings = settings or load_settings()
+    timezone_name = str(raw_settings.get("timezone") or DEFAULT_TIMEZONE).strip()
+    try:
+        return ZoneInfo(timezone_name)
+    except ZoneInfoNotFoundError:
+        return ZoneInfo(DEFAULT_TIMEZONE)
 
 def _parse_time(value: Any, fallback: time) -> time:
     if isinstance(value, time):
@@ -54,12 +66,21 @@ def load_telegram_settings() -> TelegramSettings:
 
     return TelegramSettings(
         notification=bool(raw.get("notification", False)),
-        deadline=bool(raw.get("deadline", False)),
-        routine=bool(raw.get("routine", False)),
-        finance=bool(raw.get("finance", False)),
-        deadline_day_time=_parse_time(raw.get("deadline_day_time"), DEFAULT_DEADLINE_DAY_TIME),
-        routine_time=_parse_time(raw.get("routine_time"), DEFAULT_ROUTINE_TIME),
-        finance_time=_parse_time(raw.get("finance_time"), DEFAULT_FINANCE_TIME),
+        today_task=bool(raw.get("today_task", False)),
+        daily_routine_report=bool(raw.get("daily_routine_report", False)),
+        finance_alert=bool(raw.get("finance_alert", False)),
+        schedule_for_tomorrow=bool(raw.get("schedule_for_tomorrow", False)),
+        today_task_time=_parse_time(raw.get("today_task_time"), DEFAULT_DEADLINE_DAY_TIME),
+        daily_routine_report_time=_parse_time(
+            raw.get("daily_routine_report_time"),
+            DEFAULT_ROUTINE_TIME,
+        ),
+        finance_alert_time=_parse_time(raw.get("finance_alert_time"), DEFAULT_FINANCE_TIME),
+        schedule_for_tomorrow_time=_parse_time(
+            raw.get("schedule_for_tomorrow_time"),
+            DEFAULT_ROUTINE_TIME,
+        ),
+        timezone=get_timezone(raw),
         chat_id=str(os.environ.get("TELEGRAM_CHAT_ID") or raw.get("chat_id", "")),
         token=str(os.environ.get("TELEGRAM_BOT_TOKEN") or raw.get("token", "")),
     )
@@ -85,7 +106,7 @@ def _save_state(state: dict[str, str]) -> None:
 
 
 def _today_reminder_time(now: datetime, notify_time: time) -> datetime:
-    return datetime.combine(now.date(), notify_time, tzinfo=TIMEZONE)
+    return datetime.combine(now.date(), notify_time, tzinfo=now.tzinfo or get_timezone())
 
 
 def _today_tasks_state_key(target_date: date, notify_time: time) -> str:
@@ -96,12 +117,16 @@ def _routine_state_key(target_date: date, notify_time: time) -> str:
     return f"routine-daily:{target_date.isoformat()}:{notify_time.strftime('%H:%M')}"
 
 
+def _tomorrow_tasks_state_key(target_date: date, notify_time: time) -> str:
+    return f"deadline-tomorrow:{target_date.isoformat()}:{notify_time.strftime('%H:%M')}"
+
+
 def _finance_state_key(year: int, month: int, notify_time: time) -> str:
     return f"finance-80-percent:{year}-{month:02d}:{notify_time.strftime('%H:%M')}"
 
 
 def _mark_suppressed_if_due(state_key: str, notify_time: time) -> None:
-    now = datetime.now(TIMEZONE)
+    now = datetime.now(get_timezone())
     if now < _today_reminder_time(now, notify_time):
         return
 
@@ -112,19 +137,28 @@ def _mark_suppressed_if_due(state_key: str, notify_time: time) -> None:
 
 def suppress_today_tasks_notification_if_due(notify_time_value: Any) -> None:
     notify_time = _parse_time(notify_time_value, DEFAULT_DEADLINE_DAY_TIME)
-    now = datetime.now(TIMEZONE)
+    now = datetime.now(get_timezone())
     _mark_suppressed_if_due(_today_tasks_state_key(now.date(), notify_time), notify_time)
 
 
 def suppress_routine_notification_if_due(notify_time_value: Any) -> None:
     notify_time = _parse_time(notify_time_value, DEFAULT_ROUTINE_TIME)
-    now = datetime.now(TIMEZONE)
+    now = datetime.now(get_timezone())
     _mark_suppressed_if_due(_routine_state_key(now.date(), notify_time), notify_time)
+
+
+def suppress_tomorrow_tasks_notification_if_due(notify_time_value: Any) -> None:
+    notify_time = _parse_time(notify_time_value, DEFAULT_ROUTINE_TIME)
+    now = datetime.now(get_timezone())
+    _mark_suppressed_if_due(
+        _tomorrow_tasks_state_key(now.date() + timedelta(days=1), notify_time),
+        notify_time,
+    )
 
 
 def suppress_finance_notification_if_due(notify_time_value: Any) -> None:
     notify_time = _parse_time(notify_time_value, DEFAULT_FINANCE_TIME)
-    now = datetime.now(TIMEZONE)
+    now = datetime.now(get_timezone())
     _mark_suppressed_if_due(_finance_state_key(now.year, now.month, notify_time), notify_time)
 
 
@@ -150,6 +184,31 @@ def _get_today_unfinished_tasks(target_date: date) -> list[dict[str, Any]]:
                     task_id
                 """,
                 (target_date, target_date),
+            )
+            return list(cur.fetchall())
+
+
+def _get_tomorrow_tasks(target_date: date) -> list[dict[str, Any]]:
+    from db.connection import get_conn
+
+    with get_conn() as conn:
+        with conn.cursor() as cur:
+            cur.execute(
+                """
+                SELECT task_id, goal, priority, start_at, deadline
+                FROM tasks
+                WHERE deadline = %s
+                  AND status NOT IN ('done', 'cancel')
+                ORDER BY
+                    CASE priority
+                        WHEN 'high' THEN 1
+                        WHEN 'medium' THEN 2
+                        ELSE 3
+                    END,
+                    start_at,
+                    task_id
+                """,
+                (target_date,),
             )
             return list(cur.fetchall())
 
@@ -210,47 +269,82 @@ def _format_money(amount: int) -> str:
     return f"{amount:,.0f} đ".replace(",", ".")
 
 
+def _format_date_value(value: Any) -> str:
+    if isinstance(value, datetime):
+        return value.date().isoformat()
+    if isinstance(value, date):
+        return value.isoformat()
+    return str(value)
+
+
 def _build_today_tasks_message(tasks: list[dict[str, Any]], target_date: date) -> str:
     lines = [
-        f"🧭 TASK | Việc làm hôm nay ({target_date})",
-        f"Bạn còn {len(tasks)} task chưa hoàn thành.",
+        "🧭 Today task",
+        f"Date: {target_date.isoformat()}",
+        f"Open tasks: {len(tasks)}",
         "",
     ]
 
     for index, task in enumerate(tasks[:10], start=1):
-        lines.append(f"☐ {index}. {task['goal']} | deadline {task['deadline']}")
+        lines.append(f"{index}. {task['goal']}")
+        lines.append(f"   Priority: {task['priority']}")
+        lines.append(f"   Start: {_format_date_value(task['start_at'])}")
+        lines.append(f"   Deadline: {_format_date_value(task['deadline'])}")
 
     if len(tasks) > 10:
-        lines.append(f"... và {len(tasks) - 10} task khác")
+        lines.append(f"More tasks: {len(tasks) - 10}")
 
     return "\n".join(lines)
 
 
 def _build_routine_message(routines: list[dict[str, Any]], target_date: date) -> str:
     lines = [
-        f"🔁 ROUTINE | Check-in hằng ngày ({target_date})",
-        f"Bạn còn {len(routines)} routine chưa cập nhật.",
+        "🔁 Daily routine report",
+        f"Date: {target_date.isoformat()}",
+        f"Incomplete routines: {len(routines)}",
         "",
     ]
 
     for index, routine in enumerate(routines[:15], start=1):
-        lines.append(f"○ {index}. {routine['name']}")
+        lines.append(f"{index}. {routine['name']}")
 
     if len(routines) > 15:
-        lines.append(f"... và {len(routines) - 15} routine khác")
+        lines.append(f"More routines: {len(routines) - 15}")
+
+    return "\n".join(lines)
+
+
+def _build_tomorrow_tasks_message(tasks: list[dict[str, Any]], target_date: date) -> str:
+    lines = [
+        "📅 Schedule for tomorrow",
+        f"Date: {target_date.isoformat()}",
+        f"Planned tasks: {len(tasks)}",
+        "",
+    ]
+
+    for index, task in enumerate(tasks[:10], start=1):
+        lines.append(f"{index}. {task['goal']}")
+        lines.append(f"   Priority: {task['priority']}")
+        lines.append(f"   Start: {_format_date_value(task['start_at'])}")
+        lines.append(f"   Deadline: {_format_date_value(task['deadline'])}")
+
+    if len(tasks) > 10:
+        lines.append(f"More tasks: {len(tasks) - 10}")
 
     return "\n".join(lines)
 
 
 def _build_finance_message(total_income: int, total_expense: int, ratio: float) -> str:
+    remaining = total_income - total_expense
     return "\n".join(
         [
-            "💰 FINANCE | Cảnh báo chi tiêu tháng này",
-            f"Đã chi {ratio:.0%} tổng tiền.",
+            "💰 Finance alert",
+            f"Month: {datetime.now(get_timezone()).strftime('%Y-%m')}",
+            f"Spent ratio: {ratio:.0%}",
             "",
-            f"Đã chi: {_format_money(total_expense)}",
-            f"Tổng tiền: {_format_money(total_income)}",
-            f"Còn lại: {_format_money(total_income - total_expense)}",
+            f"Total income: {_format_money(total_income)}",
+            f"Total expense: {_format_money(total_expense)}",
+            f"Remaining balance: {_format_money(remaining)}",
         ],
     )
 
@@ -283,17 +377,17 @@ def send_telegram_message(message: str, settings: TelegramSettings | None = None
 
 def run_today_tasks_notification(now: datetime | None = None) -> int:
     settings = load_telegram_settings()
-    if not settings.notification or not settings.deadline:
+    if not settings.notification or not settings.today_task:
         return 0
     if not settings.token or not settings.chat_id:
         return 0
 
-    now = now or datetime.now(TIMEZONE)
-    if now < _today_reminder_time(now, settings.deadline_day_time):
+    now = now or datetime.now(settings.timezone)
+    if now < _today_reminder_time(now, settings.today_task_time):
         return 0
 
     target_date = now.date()
-    state_key = _today_tasks_state_key(target_date, settings.deadline_day_time)
+    state_key = _today_tasks_state_key(target_date, settings.today_task_time)
     state = _load_state()
     if state_key in state:
         return 0
@@ -310,17 +404,17 @@ def run_today_tasks_notification(now: datetime | None = None) -> int:
 
 def run_routine_notification(now: datetime | None = None) -> int:
     settings = load_telegram_settings()
-    if not settings.notification or not settings.routine:
+    if not settings.notification or not settings.daily_routine_report:
         return 0
     if not settings.token or not settings.chat_id:
         return 0
 
-    now = now or datetime.now(TIMEZONE)
-    if now < _today_reminder_time(now, settings.routine_time):
+    now = now or datetime.now(settings.timezone)
+    if now < _today_reminder_time(now, settings.daily_routine_report_time):
         return 0
 
     target_date = now.date()
-    state_key = _routine_state_key(target_date, settings.routine_time)
+    state_key = _routine_state_key(target_date, settings.daily_routine_report_time)
     state = _load_state()
     if state_key in state:
         return 0
@@ -335,18 +429,45 @@ def run_routine_notification(now: datetime | None = None) -> int:
     return 1
 
 
-def run_finance_notification(now: datetime | None = None) -> int:
+def run_tomorrow_tasks_notification(now: datetime | None = None) -> int:
     settings = load_telegram_settings()
-    if not settings.notification or not settings.finance:
+    if not settings.notification or not settings.schedule_for_tomorrow:
         return 0
     if not settings.token or not settings.chat_id:
         return 0
 
-    now = now or datetime.now(TIMEZONE)
-    if now < _today_reminder_time(now, settings.finance_time):
+    now = now or datetime.now(settings.timezone)
+    if now < _today_reminder_time(now, settings.schedule_for_tomorrow_time):
         return 0
 
-    state_key = _finance_state_key(now.year, now.month, settings.finance_time)
+    target_date = now.date() + timedelta(days=1)
+    state_key = _tomorrow_tasks_state_key(target_date, settings.schedule_for_tomorrow_time)
+    state = _load_state()
+    if state_key in state:
+        return 0
+
+    tasks = _get_tomorrow_tasks(target_date)
+    if not tasks:
+        return 0
+
+    send_telegram_message(_build_tomorrow_tasks_message(tasks, target_date), settings)
+    state[state_key] = f"sent:{now.isoformat(timespec='seconds')}"
+    _save_state(state)
+    return 1
+
+
+def run_finance_notification(now: datetime | None = None) -> int:
+    settings = load_telegram_settings()
+    if not settings.notification or not settings.finance_alert:
+        return 0
+    if not settings.token or not settings.chat_id:
+        return 0
+
+    now = now or datetime.now(settings.timezone)
+    if now < _today_reminder_time(now, settings.finance_alert_time):
+        return 0
+
+    state_key = _finance_state_key(now.year, now.month, settings.finance_alert_time)
     state = _load_state()
     if state_key in state:
         return 0
@@ -370,6 +491,7 @@ def run_finance_notification(now: datetime | None = None) -> int:
 def run_all_notifications(now: datetime | None = None) -> int:
     return (
         run_today_tasks_notification(now)
+        + run_tomorrow_tasks_notification(now)
         + run_routine_notification(now)
         + run_finance_notification(now)
     )

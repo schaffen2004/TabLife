@@ -1,12 +1,14 @@
 setting:
   notification: True
-  deadline: True
-  routine: True
-  finance: True
-  deadline_day_time: 21:22
-  deadline_hour_time: 23:00
-  routine_time: 23:00
-  finance_time: 20:00
+  today_task: True
+  daily_routine_report: True
+  finance_alert: True
+  schedule_for_tomorrow: False
+  today_task_time: 11:46
+  daily_routine_report_time: 11:58
+  finance_alert_time: 20:00
+  schedule_for_tomorrow_time: 23:00
+  timezone: Asia/Ho_Chi_Minh
   language: vi
   chat_id: 5415888127
   token: 8942508022:AAF5JMZjoPzpappMI_2wl_5H9Fm8Zfzwlbg
