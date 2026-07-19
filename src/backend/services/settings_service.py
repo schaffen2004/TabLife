@@ -13,7 +13,7 @@ LEGACY_KEY_MAP = {
     "deadline_day_time": "today_task_time",
     "deadline_hour_time": "schedule_for_tomorrow_time",
     "routine_time": "daily_routine_report_time",
-    "finance_time": "finance_alert_time",
+    "finance_time": "finance_report_time",
 }
 SETTINGS_ORDER = [
     "notification",
@@ -23,7 +23,7 @@ SETTINGS_ORDER = [
     "schedule_for_tomorrow",
     "today_task_time",
     "daily_routine_report_time",
-    "finance_alert_time",
+    "finance_report_time",
     "schedule_for_tomorrow_time",
     "timezone",
     "language",

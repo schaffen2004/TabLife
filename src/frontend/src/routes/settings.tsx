@@ -32,13 +32,15 @@ export const Route = createFileRoute("/settings")({
 
 type AppSettings = {
   notification: boolean;
-  deadline: boolean;
-  routine: boolean;
-  finance: boolean;
-  deadline_day_time: string;
-  deadline_hour_time: string;
-  routine_time: string;
-  finance_time: string;
+  today_task: boolean;
+  daily_routine_report: boolean;
+  finance_alert: boolean;
+  schedule_for_tomorrow: boolean;
+  today_task_time: string;
+  daily_routine_report_time: string;
+  finance_report_time: string;
+  schedule_for_tomorrow_time: string;
+  timezone: string;
   language: string;
   chat_id: number | string;
   token: string;
@@ -46,13 +48,15 @@ type AppSettings = {
 
 const defaultSettings: AppSettings = {
   notification: false,
-  deadline: false,
-  routine: false,
-  finance: false,
-  deadline_day_time: "09:00",
-  deadline_hour_time: "23:00",
-  routine_time: "23:00",
-  finance_time: "20:00",
+  today_task: false,
+  daily_routine_report: false,
+  finance_alert: false,
+  schedule_for_tomorrow: false,
+  today_task_time: "09:00",
+  daily_routine_report_time: "23:00",
+  finance_report_time: "20:00",
+  schedule_for_tomorrow_time: "23:00",
+  timezone: "Asia/Ho_Chi_Minh",
   language: "vi",
   chat_id: "",
   token: "",
@@ -115,10 +119,13 @@ function normalizeSettings(settings: Partial<AppSettings>): AppSettings {
   return {
     ...defaultSettings,
     ...settings,
-    deadline_day_time: settings.deadline_day_time || defaultSettings.deadline_day_time,
-    deadline_hour_time: settings.deadline_hour_time || defaultSettings.deadline_hour_time,
-    routine_time: settings.routine_time || defaultSettings.routine_time,
-    finance_time: settings.finance_time || defaultSettings.finance_time,
+    today_task_time: settings.today_task_time || defaultSettings.today_task_time,
+    daily_routine_report_time:
+      settings.daily_routine_report_time || defaultSettings.daily_routine_report_time,
+    finance_report_time: settings.finance_report_time || defaultSettings.finance_report_time,
+    schedule_for_tomorrow_time:
+      settings.schedule_for_tomorrow_time || defaultSettings.schedule_for_tomorrow_time,
+    timezone: settings.timezone || defaultSettings.timezone,
     chat_id: String(settings.chat_id ?? ""),
     token: settings.token ?? "",
   };
@@ -173,13 +180,15 @@ function SettingsPage() {
       const savedSettings = await updateSettingsApi(
         patch ?? {
           notification: nextSettings.notification,
-          deadline: nextSettings.deadline,
-          routine: nextSettings.routine,
-          finance: nextSettings.finance,
-          deadline_day_time: nextSettings.deadline_day_time,
-          deadline_hour_time: nextSettings.deadline_hour_time,
-          routine_time: nextSettings.routine_time,
-          finance_time: nextSettings.finance_time,
+          today_task: nextSettings.today_task,
+          daily_routine_report: nextSettings.daily_routine_report,
+          finance_alert: nextSettings.finance_alert,
+          schedule_for_tomorrow: nextSettings.schedule_for_tomorrow,
+          today_task_time: nextSettings.today_task_time,
+          daily_routine_report_time: nextSettings.daily_routine_report_time,
+          finance_report_time: nextSettings.finance_report_time,
+          schedule_for_tomorrow_time: nextSettings.schedule_for_tomorrow_time,
+          timezone: nextSettings.timezone,
           language: nextSettings.language,
           chat_id: nextSettings.chat_id,
           token: nextSettings.token,
@@ -222,18 +231,20 @@ function SettingsPage() {
       : {
           ...settings,
           notification: false,
-          deadline: false,
-          routine: false,
-          finance: false,
+          today_task: false,
+          daily_routine_report: false,
+          finance_alert: false,
+          schedule_for_tomorrow: false,
         };
 
     setSettings(nextSettings);
 
     const saved = await saveSettings(nextSettings, false, {
       notification: nextSettings.notification,
-      deadline: nextSettings.deadline,
-      routine: nextSettings.routine,
-      finance: nextSettings.finance,
+      today_task: nextSettings.today_task,
+      daily_routine_report: nextSettings.daily_routine_report,
+      finance_alert: nextSettings.finance_alert,
+      schedule_for_tomorrow: nextSettings.schedule_for_tomorrow,
     });
     if (!saved) {
       setSettings(previousSettings);
@@ -264,10 +275,10 @@ function SettingsPage() {
         />
         <ToggleRow
           label="Task làm hôm nay"
-          hint={`Mô phỏng nhắc việc lúc ${settings.deadline_day_time}`}
-          checked={settings.deadline}
+          hint={`Mô phỏng nhắc việc lúc ${settings.today_task_time}`}
+          checked={settings.today_task}
           disabled={isLoading || isSaving}
-          onCheckedChange={(checked) => updateSetting("deadline", checked, true)}
+          onCheckedChange={(checked) => updateSetting("today_task", checked, true)}
         />
         <div className="flex flex-col gap-3 rounded-xl border bg-card p-3 sm:flex-row sm:items-center sm:justify-between">
           <div className="flex min-w-0 items-center gap-3">
@@ -276,6 +287,33 @@ function SettingsPage() {
             </div>
             <div className="min-w-0">
               <Label htmlFor="deadline-day-time">Giờ nhắc task hôm nay</Label>
+              <p className="text-xs text-muted-foreground">Thay đổi sẽ được lưu trực tiếp vào backend.</p>
+            </div>
+          </div>
+          <div className="w-full sm:w-40">
+            <Input
+              id="deadline-day-time"
+              type="time"
+              value={settings.today_task_time}
+              disabled={notificationDisabled || !settings.today_task}
+              onChange={(event) => updateSetting("today_task_time", event.target.value)}
+            />
+          </div>
+        </div>
+        <ToggleRow
+          label="Schedule for tomorrow"
+          hint={`Gửi lịch ngày mai lúc ${settings.schedule_for_tomorrow_time}`}
+          checked={settings.schedule_for_tomorrow}
+          disabled={isLoading || isSaving}
+          onCheckedChange={(checked) => updateSetting("schedule_for_tomorrow", checked, true)}
+        />
+        <div className="flex flex-col gap-3 rounded-xl border bg-card p-3 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex min-w-0 items-center gap-3">
+            <div className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-muted text-muted-foreground">
+              <Clock className="h-4 w-4" />
+            </div>
+            <div className="min-w-0">
+              <Label htmlFor="schedule-for-tomorrow-time">Giờ gửi lịch ngày mai</Label>
               <p className="text-xs text-muted-foreground">
                 Thay đổi sẽ được lưu trực tiếp vào backend.
               </p>
@@ -283,47 +321,49 @@ function SettingsPage() {
           </div>
           <div className="w-full sm:w-40">
             <Input
-              id="deadline-day-time"
+              id="schedule-for-tomorrow-time"
               type="time"
-              value={settings.deadline_day_time}
-              disabled={notificationDisabled || !settings.deadline}
-              onChange={(event) => updateSetting("deadline_day_time", event.target.value)}
+              value={settings.schedule_for_tomorrow_time}
+              disabled={notificationDisabled || !settings.schedule_for_tomorrow}
+              onChange={(event) =>
+                updateSetting("schedule_for_tomorrow_time", event.target.value)
+              }
             />
           </div>
         </div>
         <ToggleRow
           label="Daily routine"
-          hint={`Nhắc cập nhật mỗi ngày lúc ${settings.routine_time}`}
-          checked={settings.routine}
+          hint={`Nhắc cập nhật mỗi ngày lúc ${settings.daily_routine_report_time}`}
+          checked={settings.daily_routine_report}
           disabled={isLoading || isSaving}
-          onCheckedChange={(checked) => updateSetting("routine", checked, true)}
+          onCheckedChange={(checked) => updateSetting("daily_routine_report", checked, true)}
         />
         <div className="rounded-xl border bg-card p-3">
           <div className="space-y-2">
             <Label>Giờ nhắc routine</Label>
             <Input
               type="time"
-              value={settings.routine_time}
-              disabled={notificationDisabled || !settings.routine}
-              onChange={(event) => updateSetting("routine_time", event.target.value)}
+              value={settings.daily_routine_report_time}
+              disabled={notificationDisabled || !settings.daily_routine_report}
+              onChange={(event) => updateSetting("daily_routine_report_time", event.target.value)}
             />
           </div>
         </div>
         <ToggleRow
           label="Cảnh báo tài chính"
-          hint={`Mô phỏng kiểm tra lúc ${settings.finance_time}`}
-          checked={settings.finance}
+          hint={`Mô phỏng kiểm tra lúc ${settings.finance_report_time}`}
+          checked={settings.finance_alert}
           disabled={isLoading || isSaving}
-          onCheckedChange={(checked) => updateSetting("finance", checked, true)}
+          onCheckedChange={(checked) => updateSetting("finance_alert", checked, true)}
         />
         <div className="rounded-xl border bg-card p-3">
           <div className="space-y-2">
             <Label>Giờ kiểm tra tài chính</Label>
             <Input
               type="time"
-              value={settings.finance_time}
-              disabled={notificationDisabled || !settings.finance}
-              onChange={(event) => updateSetting("finance_time", event.target.value)}
+              value={settings.finance_report_time}
+              disabled={notificationDisabled || !settings.finance_alert}
+              onChange={(event) => updateSetting("finance_report_time", event.target.value)}
             />
           </div>
         </div>
@@ -381,20 +421,30 @@ function SettingsPage() {
       </SectionCard>
 
       <SectionCard icon={Palette} title="Giao diện" description="Ngôn ngữ">
-        <div className="space-y-2">
-          <Label>Ngôn ngữ</Label>
-          <Select
-            value={settings.language}
-            onValueChange={(value) => updateSetting("language", value)}
-          >
-            <SelectTrigger>
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="vi">Tiếng Việt</SelectItem>
-              <SelectItem value="en">English</SelectItem>
-            </SelectContent>
-          </Select>
+        <div className="grid gap-4 sm:grid-cols-2">
+          <div className="space-y-2">
+            <Label>Ngôn ngữ</Label>
+            <Select
+              value={settings.language}
+              onValueChange={(value) => updateSetting("language", value)}
+            >
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="vi">Tiếng Việt</SelectItem>
+                <SelectItem value="en">English</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="space-y-2">
+            <Label>Múi giờ</Label>
+            <Input
+              value={settings.timezone}
+              onChange={(event) => updateSetting("timezone", event.target.value)}
+              placeholder="Asia/Ho_Chi_Minh"
+            />
+          </div>
         </div>
       </SectionCard>
 

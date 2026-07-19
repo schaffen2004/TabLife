@@ -5,8 +5,8 @@ setting:
   finance_alert: True
   schedule_for_tomorrow: False
   today_task_time: 11:46
-  daily_routine_report_time: 11:58
-  finance_alert_time: 20:00
+  daily_routine_report_time: 12:17
+  finance_report_time: 12:18
   schedule_for_tomorrow_time: 23:00
   timezone: Asia/Ho_Chi_Minh
   language: vi

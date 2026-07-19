@@ -17,7 +17,7 @@ def sync_telegram_notification_settings(
     previous_today_task_time = previous_settings.get("today_task_time")
     previous_schedule_for_tomorrow_time = previous_settings.get("schedule_for_tomorrow_time")
     previous_daily_routine_report_time = previous_settings.get("daily_routine_report_time")
-    previous_finance_alert_time = previous_settings.get("finance_alert_time")
+    previous_finance_report_time = previous_settings.get("finance_report_time")
 
     if (
         "today_task_time" in changed_settings
@@ -40,7 +40,7 @@ def sync_telegram_notification_settings(
         suppress_routine_notification_if_due(changed_settings["daily_routine_report_time"])
 
     if (
-        "finance_alert_time" in changed_settings
-        and str(changed_settings["finance_alert_time"]) != str(previous_finance_alert_time)
+        "finance_report_time" in changed_settings
+        and str(changed_settings["finance_report_time"]) != str(previous_finance_report_time)
     ):
-        suppress_finance_notification_if_due(changed_settings["finance_alert_time"])
+        suppress_finance_notification_if_due(changed_settings["finance_report_time"])

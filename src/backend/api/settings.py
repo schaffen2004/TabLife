@@ -23,7 +23,7 @@ class SettingsUpdate(BaseModel):
     schedule_for_tomorrow: bool | None = None
     today_task_time: str | None = None
     daily_routine_report_time: str | None = None
-    finance_alert_time: str | None = None
+    finance_report_time: str | None = None
     schedule_for_tomorrow_time: str | None = None
     timezone: str | None = None
     language: str | None = None

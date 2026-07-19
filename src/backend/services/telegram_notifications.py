@@ -20,7 +20,6 @@ DEFAULT_TIMEZONE = os.environ.get("TABLIFE_TIMEZONE", "Asia/Ho_Chi_Minh")
 DEFAULT_DEADLINE_DAY_TIME = time(9, 0)
 DEFAULT_ROUTINE_TIME = time(23, 0)
 DEFAULT_FINANCE_TIME = time(20, 0)
-FINANCE_WARNING_RATIO = 0.8
 
 
 @dataclass
@@ -32,7 +31,7 @@ class TelegramSettings:
     schedule_for_tomorrow: bool = False
     today_task_time: time = DEFAULT_DEADLINE_DAY_TIME
     daily_routine_report_time: time = DEFAULT_ROUTINE_TIME
-    finance_alert_time: time = DEFAULT_FINANCE_TIME
+    finance_report_time: time = DEFAULT_FINANCE_TIME
     schedule_for_tomorrow_time: time = DEFAULT_ROUTINE_TIME
     timezone: ZoneInfo = ZoneInfo(DEFAULT_TIMEZONE)
     chat_id: str = ""
@@ -75,7 +74,7 @@ def load_telegram_settings() -> TelegramSettings:
             raw.get("daily_routine_report_time"),
             DEFAULT_ROUTINE_TIME,
         ),
-        finance_alert_time=_parse_time(raw.get("finance_alert_time"), DEFAULT_FINANCE_TIME),
+        finance_report_time=_parse_time(raw.get("finance_report_time"), DEFAULT_FINANCE_TIME),
         schedule_for_tomorrow_time=_parse_time(
             raw.get("schedule_for_tomorrow_time"),
             DEFAULT_ROUTINE_TIME,
@@ -121,10 +120,6 @@ def _tomorrow_tasks_state_key(target_date: date, notify_time: time) -> str:
     return f"deadline-tomorrow:{target_date.isoformat()}:{notify_time.strftime('%H:%M')}"
 
 
-def _finance_state_key(year: int, month: int, notify_time: time) -> str:
-    return f"finance-80-percent:{year}-{month:02d}:{notify_time.strftime('%H:%M')}"
-
-
 def _mark_suppressed_if_due(state_key: str, notify_time: time) -> None:
     now = datetime.now(get_timezone())
     if now < _today_reminder_time(now, notify_time):
@@ -159,7 +154,7 @@ def suppress_tomorrow_tasks_notification_if_due(notify_time_value: Any) -> None:
 def suppress_finance_notification_if_due(notify_time_value: Any) -> None:
     notify_time = _parse_time(notify_time_value, DEFAULT_FINANCE_TIME)
     now = datetime.now(get_timezone())
-    _mark_suppressed_if_due(_finance_state_key(now.year, now.month, notify_time), notify_time)
+    _mark_suppressed_if_due(_finance_state_key_for_date(now.date(), notify_time), notify_time)
 
 
 def _get_today_unfinished_tasks(target_date: date) -> list[dict[str, Any]]:
@@ -235,7 +230,11 @@ def _get_incomplete_routines(target_date: date) -> list[dict[str, Any]]:
             return list(cur.fetchall())
 
 
-def _get_monthly_finance(year: int, month: int) -> dict[str, int]:
+def _finance_state_key_for_date(target_date: date, notify_time: time) -> str:
+    return f"finance-daily:{target_date.isoformat()}:{notify_time.strftime('%H:%M')}"
+
+
+def _get_daily_finance(target_date: date) -> dict[str, int]:
     from db.connection import get_conn
 
     with get_conn() as conn:
@@ -244,10 +243,9 @@ def _get_monthly_finance(year: int, month: int) -> dict[str, int]:
                 """
                 SELECT COALESCE(SUM(amount), 0) AS total
                 FROM income
-                WHERE EXTRACT(YEAR FROM income_date) = %s
-                  AND EXTRACT(MONTH FROM income_date) = %s
+                WHERE income_date = %s
                 """,
-                (year, month),
+                (target_date,),
             )
             total_income = int(cur.fetchone()["total"])
 
@@ -255,10 +253,9 @@ def _get_monthly_finance(year: int, month: int) -> dict[str, int]:
                 """
                 SELECT COALESCE(SUM(amount), 0) AS total
                 FROM expense
-                WHERE EXTRACT(YEAR FROM expense_date) = %s
-                  AND EXTRACT(MONTH FROM expense_date) = %s
+                WHERE expense_date = %s
                 """,
-                (year, month),
+                (target_date,),
             )
             total_expense = int(cur.fetchone()["total"])
 
@@ -334,17 +331,16 @@ def _build_tomorrow_tasks_message(tasks: list[dict[str, Any]], target_date: date
     return "\n".join(lines)
 
 
-def _build_finance_message(total_income: int, total_expense: int, ratio: float) -> str:
+def _build_finance_message(target_date: date, total_income: int, total_expense: int) -> str:
     remaining = total_income - total_expense
     return "\n".join(
         [
             "💰 Finance alert",
-            f"Month: {datetime.now(get_timezone()).strftime('%Y-%m')}",
-            f"Spent ratio: {ratio:.0%}",
+            f"Date: {target_date.isoformat()}",
             "",
-            f"Total income: {_format_money(total_income)}",
-            f"Total expense: {_format_money(total_expense)}",
-            f"Remaining balance: {_format_money(remaining)}",
+            f"So tien dung hom nay: {_format_money(total_expense)}",
+            f"Doanh thu hom nay: {_format_money(total_income)}",
+            f"So tien con lai: {_format_money(remaining)}",
         ],
     )
 
@@ -464,25 +460,20 @@ def run_finance_notification(now: datetime | None = None) -> int:
         return 0
 
     now = now or datetime.now(settings.timezone)
-    if now < _today_reminder_time(now, settings.finance_alert_time):
+    if now < _today_reminder_time(now, settings.finance_report_time):
         return 0
 
-    state_key = _finance_state_key(now.year, now.month, settings.finance_alert_time)
+    target_date = now.date()
+    state_key = _finance_state_key_for_date(target_date, settings.finance_report_time)
     state = _load_state()
     if state_key in state:
         return 0
 
-    summary = _get_monthly_finance(now.year, now.month)
+    summary = _get_daily_finance(target_date)
     total_income = summary["total_income"]
     total_expense = summary["total_expense"]
-    if total_income <= 0:
-        return 0
 
-    ratio = total_expense / total_income
-    if ratio < FINANCE_WARNING_RATIO:
-        return 0
-
-    send_telegram_message(_build_finance_message(total_income, total_expense, ratio), settings)
+    send_telegram_message(_build_finance_message(target_date, total_income, total_expense), settings)
     state[state_key] = f"sent:{now.isoformat(timespec='seconds')}"
     _save_state(state)
     return 1
