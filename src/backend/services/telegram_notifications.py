@@ -345,6 +345,36 @@ def _build_finance_message(target_date: date, total_income: int, total_expense: 
     )
 
 
+def build_test_message(note: str | None = None, settings: TelegramSettings | None = None) -> str:
+    settings = settings or load_telegram_settings()
+    now = datetime.now(settings.timezone)
+
+    lines = [
+        "🚀 TabLife test notification",
+        f"Date: {now.date().isoformat()}",
+        f"Time: {now.strftime('%H:%M')}",
+        f"Timezone: {settings.timezone.key}",
+        "",
+        "Telegram connection is working normally.",
+    ]
+
+    cleaned_note = (note or "").strip()
+    if cleaned_note:
+        lines.extend(["", f"Note: {cleaned_note}"])
+
+    lines.extend(
+        [
+            "",
+            "Status:",
+            "• Bot token is configured",
+            "• Chat ID is configured",
+            "• Backend can send Telegram messages",
+        ]
+    )
+
+    return "\n".join(lines)
+
+
 def send_telegram_message(message: str, settings: TelegramSettings | None = None) -> None:
     settings = settings or load_telegram_settings()
     if not settings.token:
