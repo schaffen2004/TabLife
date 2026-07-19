@@ -11,9 +11,10 @@ from pathlib import Path
 from typing import Any
 from zoneinfo import ZoneInfo
 
+from services.settings_service import load_settings
+
 
 BACKEND_DIR = Path(__file__).resolve().parents[1]
-SETTINGS_FILE = BACKEND_DIR / "config" / "setting.yaml"
 STATE_FILE = BACKEND_DIR / "config" / "telegram_notification_state.json"
 TIMEZONE = ZoneInfo(os.environ.get("TABLIFE_TIMEZONE", "Asia/Ho_Chi_Minh"))
 DEFAULT_DEADLINE_DAY_TIME = time(9, 0)
@@ -34,20 +35,6 @@ class TelegramSettings:
     chat_id: str = ""
     token: str = ""
 
-
-def _parse_scalar(value: str) -> Any:
-    normalized = value.strip()
-    lowered = normalized.lower()
-
-    if lowered == "true":
-        return True
-    if lowered == "false":
-        return False
-    if normalized.isdigit():
-        return int(normalized)
-    return normalized.strip('"').strip("'")
-
-
 def _parse_time(value: Any, fallback: time) -> time:
     if isinstance(value, time):
         return value
@@ -63,24 +50,7 @@ def _parse_time(value: Any, fallback: time) -> time:
 
 
 def load_telegram_settings() -> TelegramSettings:
-    raw: dict[str, Any] = {}
-    in_setting_block = False
-
-    if SETTINGS_FILE.exists():
-        for raw_line in SETTINGS_FILE.read_text(encoding="utf-8").splitlines():
-            if not raw_line.strip() or raw_line.lstrip().startswith("#"):
-                continue
-
-            if raw_line.strip() == "setting:":
-                in_setting_block = True
-                continue
-
-            if not in_setting_block or not raw_line.startswith((" ", "\t")):
-                continue
-
-            key, separator, value = raw_line.strip().partition(":")
-            if separator:
-                raw[key.strip()] = _parse_scalar(value)
+    raw = load_settings()
 
     return TelegramSettings(
         notification=bool(raw.get("notification", False)),
@@ -405,7 +375,7 @@ def run_all_notifications(now: datetime | None = None) -> int:
     )
 
 
-async def telegram_notification_worker(interval_seconds: int = 60) -> None:
+async def telegram_notification_worker(interval_seconds: int = 10) -> None:
     while True:
         try:
             await asyncio.to_thread(run_all_notifications)

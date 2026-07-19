@@ -14,6 +14,11 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { toast } from "sonner";
+import {
+  fetchSettings,
+  type BackendSettings,
+  updateSettings as updateSettingsApi,
+} from "@/lib/api";
 
 export const Route = createFileRoute("/settings")({
   head: () => ({
@@ -38,8 +43,6 @@ type AppSettings = {
   chat_id: number | string;
   token: string;
 };
-
-const SETTINGS_STORAGE_KEY = "tablife-ui-settings";
 
 const defaultSettings: AppSettings = {
   notification: false,
@@ -121,18 +124,6 @@ function normalizeSettings(settings: Partial<AppSettings>): AppSettings {
   };
 }
 
-function loadStoredSettings() {
-  if (typeof window === "undefined") return defaultSettings;
-
-  try {
-    const raw = window.localStorage.getItem(SETTINGS_STORAGE_KEY);
-    if (!raw) return defaultSettings;
-    return normalizeSettings(JSON.parse(raw) as Partial<AppSettings>);
-  } catch {
-    return defaultSettings;
-  }
-}
-
 function SettingsPage() {
   const [settings, setSettings] = useState<AppSettings>(defaultSettings);
   const [isLoading, setIsLoading] = useState(true);
@@ -141,21 +132,64 @@ function SettingsPage() {
   const notificationDisabled = isLoading || isSaving || !settings.notification;
 
   useEffect(() => {
-    setSettings(loadStoredSettings());
-    setIsLoading(false);
+    let cancelled = false;
+
+    const loadSettings = async () => {
+      setIsLoading(true);
+      try {
+        const data = await fetchSettings();
+        if (!cancelled) {
+          setSettings(normalizeSettings(data));
+        }
+      } catch (error) {
+        if (!cancelled) {
+          toast.error(
+            error instanceof Error
+              ? `Không tải được settings từ API: ${error.message}`
+              : "Không tải được settings từ API",
+          );
+        }
+      } finally {
+        if (!cancelled) {
+          setIsLoading(false);
+        }
+      }
+    };
+
+    loadSettings();
+
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
-  const saveSettings = async (nextSettings: AppSettings, showSuccess = false) => {
+  const saveSettings = async (
+    nextSettings: AppSettings,
+    showSuccess = false,
+    patch?: Partial<BackendSettings>,
+  ) => {
     setIsSaving(true);
     try {
-      if (typeof window !== "undefined") {
-        window.localStorage.setItem(SETTINGS_STORAGE_KEY, JSON.stringify(nextSettings));
-      }
-      setSettings(normalizeSettings(nextSettings));
+      const savedSettings = await updateSettingsApi(
+        patch ?? {
+          notification: nextSettings.notification,
+          deadline: nextSettings.deadline,
+          routine: nextSettings.routine,
+          finance: nextSettings.finance,
+          deadline_day_time: nextSettings.deadline_day_time,
+          deadline_hour_time: nextSettings.deadline_hour_time,
+          routine_time: nextSettings.routine_time,
+          finance_time: nextSettings.finance_time,
+          language: nextSettings.language,
+          chat_id: nextSettings.chat_id,
+          token: nextSettings.token,
+        },
+      );
+      setSettings(normalizeSettings(savedSettings));
       if (showSuccess) toast.success("Đã lưu cài đặt giao diện");
       return true;
-    } catch {
-      toast.error("Không lưu được cài đặt trên trình duyệt này");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Không lưu được cài đặt từ API");
       return false;
     } finally {
       setIsSaving(false);
@@ -173,7 +207,9 @@ function SettingsPage() {
 
     if (!persist) return;
 
-    const saved = await saveSettings(nextSettings);
+    const saved = await saveSettings(nextSettings, false, {
+      [key]: value,
+    } as Partial<BackendSettings>);
     if (!saved) {
       setSettings(previousSettings);
     }
@@ -193,7 +229,12 @@ function SettingsPage() {
 
     setSettings(nextSettings);
 
-    const saved = await saveSettings(nextSettings);
+    const saved = await saveSettings(nextSettings, false, {
+      notification: nextSettings.notification,
+      deadline: nextSettings.deadline,
+      routine: nextSettings.routine,
+      finance: nextSettings.finance,
+    });
     if (!saved) {
       setSettings(previousSettings);
     }
@@ -209,7 +250,7 @@ function SettingsPage() {
       {isLoading && (
         <Card>
           <CardContent className="p-4 text-sm text-muted-foreground">
-            Đang tải cài đặt cục bộ...
+            Đang tải cài đặt từ API...
           </CardContent>
         </Card>
       )}
@@ -236,7 +277,7 @@ function SettingsPage() {
             <div className="min-w-0">
               <Label htmlFor="deadline-day-time">Giờ nhắc task hôm nay</Label>
               <p className="text-xs text-muted-foreground">
-                Đây là cấu hình UI demo, không gửi thông báo ra backend.
+                Thay đổi sẽ được lưu trực tiếp vào backend.
               </p>
             </div>
           </div>
@@ -291,7 +332,7 @@ function SettingsPage() {
       <SectionCard
         icon={Send}
         title="Telegram UI"
-        description="Giữ lại form cấu hình để demo giao diện"
+        description="Cấu hình Telegram được lấy và lưu qua API"
       >
         <div className="grid gap-4 sm:grid-cols-2">
           <div className="space-y-2">
