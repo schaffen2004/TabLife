@@ -11,10 +11,11 @@ import type {
   Transaction,
 } from "./mock-data";
 
-const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL || "https://api.d4f.io.vn/api").replace(
+const API_ORIGIN = (import.meta.env.VITE_API_BASE_URL || "https://api.d4f.io.vn").replace(
   /\/+$/,
   "",
 );
+const API_BASE_URL = `${API_ORIGIN}/api`;
 
 type WorkStatus = "new" | "in_progress" | "done" | "cancel";
 type TaskPriority = "low" | "medium" | "high";
