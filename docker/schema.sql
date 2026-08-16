@@ -199,6 +199,8 @@ CREATE TABLE IF NOT EXISTS plan_requirements (
   UNIQUE (plan_id, position)
 );
 
+ALTER TABLE plan_requirements ADD COLUMN IF NOT EXISTS due_at DATE;
+
 -- ─── ROUTINES ─────────────────────────────────────────────────────────────────
 
 CREATE TABLE IF NOT EXISTS routines (

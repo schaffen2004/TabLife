@@ -19,6 +19,7 @@ import {
   SidebarMenuButton,
   SidebarMenuItem,
 } from "@/components/ui/sidebar";
+import logoBg from "../../../assets/logo_bg.png";
 
 const navItems = [
   { title: "Tổng quan", url: "/", icon: LayoutDashboard },
@@ -43,9 +44,11 @@ export function AppSidebar() {
           to="/"
           className="flex items-center gap-2.5 rounded-xl px-2 py-1.5 hover:bg-sidebar-accent group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:p-0"
         >
-          <div className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-gradient-to-br from-primary to-primary-glow text-primary-foreground shadow-sm group-data-[collapsible=icon]:h-8 group-data-[collapsible=icon]:w-8">
-            <span className="font-display text-base font-bold">T</span>
-          </div>
+          <img
+            src={logoBg}
+            alt="TabLife"
+            className="h-9 w-9 shrink-0 rounded-full object-cover shadow-sm group-data-[collapsible=icon]:h-8 group-data-[collapsible=icon]:w-8"
+          />
           <div className="min-w-0 leading-tight group-data-[collapsible=icon]:hidden">
             <span className="font-display text-lg font-bold tracking-tight">TabLife</span>
             <span className="block truncate text-[11px] text-muted-foreground">Life management</span>
