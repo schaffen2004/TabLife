@@ -284,3 +284,12 @@
     letter-spacing: -0.02em;
   }
 }
+
+.dark .recharts-default-tooltip,
+.dark .recharts-default-tooltip .recharts-tooltip-label,
+.dark .recharts-default-tooltip .recharts-tooltip-item,
+.dark .recharts-default-tooltip .recharts-tooltip-item-name,
+.dark .recharts-default-tooltip .recharts-tooltip-item-separator,
+.dark .recharts-default-tooltip .recharts-tooltip-item-value {
+  color: #fff !important;
+}

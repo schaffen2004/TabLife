@@ -20,6 +20,7 @@ import { ColoredStatusSelect, workStatusOptions } from "@/components/ColoredStat
 import { TaskDialog } from "@/components/TaskDialog";
 import { useStore } from "@/lib/store";
 import { formatId, type Task, type TaskStatus } from "@/lib/mock-data";
+import { chartTooltipProps } from "@/lib/utils";
 import {
   Select,
   SelectContent,
@@ -469,13 +470,7 @@ function StatsView() {
                   axisLine={false}
                 />
                 <YAxis stroke="currentColor" fontSize={12} tickLine={false} axisLine={false} />
-                <Tooltip
-                  contentStyle={{
-                    background: "var(--card)",
-                    border: "1px solid var(--border)",
-                    borderRadius: 12,
-                  }}
-                />
+                <Tooltip {...chartTooltipProps} />
                 <Legend wrapperStyle={{ fontSize: 12 }} />
                 <Bar dataKey="done" fill="var(--success)" radius={[6, 6, 0, 0]} />
                 <Bar dataKey="inProgress" fill="var(--primary)" radius={[6, 6, 0, 0]} />
@@ -504,13 +499,7 @@ function StatsView() {
                     <Cell key={i} fill={colors[i]} />
                   ))}
                 </Pie>
-                <Tooltip
-                  contentStyle={{
-                    background: "var(--card)",
-                    border: "1px solid var(--border)",
-                    borderRadius: 12,
-                  }}
-                />
+                <Tooltip {...chartTooltipProps} />
                 <Legend wrapperStyle={{ fontSize: 12 }} />
               </PieChart>
             </ResponsiveContainer>

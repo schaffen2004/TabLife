@@ -1,4 +1,5 @@
 import type {
+  LifeEvent,
   Plan,
   PlanRequirement,
   Project,
@@ -101,6 +102,17 @@ type BackendPlan = {
   estimated_time: string;
   status: Plan["status"];
   requirements?: BackendRequirement[];
+};
+
+type BackendEvent = {
+  event_id: number;
+  name: string;
+  description: string;
+  location?: string | null;
+  event_date: string;
+  start_time: string;
+  end_time?: string | null;
+  status: LifeEvent["status"];
 };
 
 type BackendRequirement = {
@@ -279,6 +291,24 @@ function toPlan(plan: BackendPlan): Plan {
   };
 }
 
+function toTime(value?: string | null): string | undefined {
+  if (!value) return undefined;
+  return value.slice(0, 5);
+}
+
+function toEvent(event: BackendEvent): LifeEvent {
+  return {
+    id: event.event_id,
+    name: event.name,
+    description: event.description || "",
+    location: event.location || undefined,
+    date: event.event_date.slice(0, 10),
+    startTime: toTime(event.start_time) ?? "00:00",
+    endTime: toTime(event.end_time),
+    status: event.status,
+  };
+}
+
 function getWeekHistory(checkins: BackendRoutineCheckin[]): boolean[] {
   const today = new Date();
   const monday = new Date(today);
@@ -385,6 +415,11 @@ export async function fetchResearch(): Promise<ResearchTopic[]> {
 export async function fetchPlans(): Promise<Plan[]> {
   const plans = await apiRequest<BackendPlan[]>("/plans?include_requirements=true");
   return plans.map(toPlan);
+}
+
+export async function fetchEvents(): Promise<LifeEvent[]> {
+  const events = await apiRequest<BackendEvent[]>("/events");
+  return events.map(toEvent);
 }
 
 export async function fetchRoutines(): Promise<Routine[]> {
@@ -748,6 +783,42 @@ export async function updatePlan(planId: number, patch: Partial<Plan>): Promise<
 
 export async function deletePlan(planId: number): Promise<void> {
   await apiRequest(`/plans/${planId}`, { method: "DELETE" });
+}
+
+export async function createEvent(payload: Omit<LifeEvent, "id">): Promise<LifeEvent> {
+  const event = await apiRequest<BackendEvent>("/events", {
+    method: "POST",
+    body: JSON.stringify({
+      name: payload.name,
+      description: payload.description,
+      location: payload.location || null,
+      event_date: payload.date,
+      start_time: payload.startTime,
+      end_time: payload.endTime || null,
+      status: payload.status,
+    }),
+  });
+  return toEvent(event);
+}
+
+export async function updateEvent(eventId: number, patch: Partial<LifeEvent>): Promise<LifeEvent> {
+  const event = await apiRequest<BackendEvent>(`/events/${eventId}`, {
+    method: "PATCH",
+    body: JSON.stringify({
+      name: patch.name,
+      description: patch.description,
+      location: patch.location === undefined ? undefined : patch.location || null,
+      event_date: patch.date,
+      start_time: patch.startTime,
+      end_time: patch.endTime === undefined ? undefined : patch.endTime || null,
+      status: patch.status,
+    }),
+  });
+  return toEvent(event);
+}
+
+export async function deleteEvent(eventId: number): Promise<void> {
+  await apiRequest(`/events/${eventId}`, { method: "DELETE" });
 }
 
 export async function createRoutine(name: string): Promise<Routine> {

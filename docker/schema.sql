@@ -15,6 +15,9 @@ CREATE TYPE work_status     AS ENUM ('new', 'in_progress', 'done', 'cancel');
 -- Plans: draft | active | done | cancel (frontend Plan.status)
 CREATE TYPE plan_status     AS ENUM ('draft', 'active', 'done', 'cancel');
 
+-- Events: upcoming | done | cancel (frontend LifeEvent.status)
+CREATE TYPE event_status    AS ENUM ('upcoming', 'done', 'cancel');
+
 
 
 -- Finance: income categories
@@ -200,6 +203,25 @@ CREATE TABLE IF NOT EXISTS plan_requirements (
 );
 
 ALTER TABLE plan_requirements ADD COLUMN IF NOT EXISTS due_at DATE;
+
+-- ─── EVENTS ───────────────────────────────────────────────────────────────────
+
+CREATE TABLE IF NOT EXISTS events (
+  event_id     BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+  name         TEXT   NOT NULL,
+  description  TEXT   NOT NULL DEFAULT '',
+  location     TEXT   DEFAULT NULL,
+  event_date   DATE   NOT NULL,
+  start_time   TIME   NOT NULL,
+  end_time     TIME   DEFAULT NULL,
+  status       event_status NOT NULL DEFAULT 'upcoming',
+  created_at   TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at   TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  CONSTRAINT events_name_not_blank     CHECK (btrim(name) <> ''),
+  CONSTRAINT events_location_not_blank CHECK (location IS NULL OR btrim(location) <> '')
+);
+
+CREATE INDEX IF NOT EXISTS events_event_date_idx ON events (event_date, start_time);
 
 -- ─── ROUTINES ─────────────────────────────────────────────────────────────────
 

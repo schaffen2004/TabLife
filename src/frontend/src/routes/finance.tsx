@@ -14,6 +14,7 @@ import {
 import { useStore } from "@/lib/store";
 import { formatVND, formatId, type Transaction } from "@/lib/mock-data";
 import { toast } from "sonner";
+import { chartTooltipProps } from "@/lib/utils";
 
 export const Route = createFileRoute("/finance")({
   head: () => ({
@@ -418,7 +419,7 @@ function FinancePage() {
                     formatVND(Number(value) * 1_000_000),
                     name === "income" ? "Thu" : "Chi",
                   ]}
-                  contentStyle={{ background: "var(--card)", border: "1px solid var(--border)", borderRadius: 12 }}
+                  {...chartTooltipProps}
                 />
                 <Bar dataKey="income" fill="var(--success)" radius={[6, 6, 0, 0]} />
                 <Bar dataKey="expense" fill="var(--primary)" radius={[6, 6, 0, 0]} />
@@ -436,7 +437,7 @@ function FinancePage() {
                 <Pie data={pieData} dataKey="value" nameKey="name" innerRadius={45} outerRadius={85} paddingAngle={2}>
                   {pieData.map((_, i) => <Cell key={i} fill={colors[i % colors.length]} />)}
                 </Pie>
-                <Tooltip formatter={(v: any) => formatVND(v)} contentStyle={{ background: "var(--card)", border: "1px solid var(--border)", borderRadius: 12 }} />
+                <Tooltip formatter={(v: any) => formatVND(v)} {...chartTooltipProps} />
                 <Legend wrapperStyle={{ fontSize: 11 }} />
               </PieChart>
             </ResponsiveContainer>

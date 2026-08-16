@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import asdict, is_dataclass
-from datetime import date, datetime
+from datetime import date, datetime, time
 from decimal import Decimal
 from typing import Any
 
@@ -22,8 +22,12 @@ def to_json(value: Any) -> Any:
         return [to_json(item) for item in value]
     if isinstance(value, dict):
         return {key: to_json(item) for key, item in value.items()}
-    if isinstance(value, (date, datetime)):
+    if isinstance(value, datetime):
         return value.isoformat()
+    if isinstance(value, date):
+        return value.isoformat()
+    if isinstance(value, time):
+        return value.strftime("%H:%M")
     if isinstance(value, Decimal):
         return int(value) if value == value.to_integral_value() else float(value)
     return value

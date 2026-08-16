@@ -4,6 +4,7 @@ export type TaskStatus = "new" | "in_progress" | "done" | "cancel";
 export type WorkStatus = "new" | "in_progress" | "done" | "cancel";
 export type ProjectStatus = WorkStatus;
 export type PlanStatus = "draft" | "active" | "done" | "cancel";
+export type EventStatus = "upcoming" | "done" | "cancel";
 export type Priority = "low" | "medium" | "high";
 
 export interface TaskStep {
@@ -62,6 +63,17 @@ export interface PlanRequirement {
   name: string;
   status: WorkStatus;
   dueAt?: string;
+}
+
+export interface LifeEvent {
+  id: number;
+  name: string;
+  description: string;
+  location?: string;
+  date: string;
+  startTime: string;
+  endTime?: string;
+  status: EventStatus;
 }
 
 export interface Subtopic {
@@ -394,6 +406,37 @@ export const seedPlans: Plan[] = [
   },
 ];
 
+export const seedEvents: LifeEvent[] = [
+  {
+    id: 1,
+    name: "Review TabLife MVP",
+    description: "Điểm danh tiến độ tuần với team",
+    location: "Google Meet",
+    date: "2026-08-17",
+    startTime: "09:30",
+    endTime: "10:30",
+    status: "upcoming",
+  },
+  {
+    id: 2,
+    name: "Khám răng định kỳ",
+    description: "Lịch hẹn nha khoa",
+    location: "Phòng khám quận 1",
+    date: "2026-08-20",
+    startTime: "14:00",
+    endTime: "15:00",
+    status: "upcoming",
+  },
+  {
+    id: 3,
+    name: "Sinh nhật mẹ",
+    description: "Mua hoa và ăn tối gia đình",
+    date: "2026-08-16",
+    startTime: "18:00",
+    status: "done",
+  },
+];
+
 export const seedRoutines: Routine[] = [
   {
     id: 1,
@@ -506,6 +549,7 @@ export const statusLabel: Record<string, string> = {
   cancel: "Đã huỷ",
   active: "Đang hoạt động",
   draft: "Nháp",
+  upcoming: "Sắp diễn ra",
 };
 
 export const weeklyTaskProgress = [

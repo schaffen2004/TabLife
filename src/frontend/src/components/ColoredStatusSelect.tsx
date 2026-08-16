@@ -53,6 +53,11 @@ const colorStyles: Record<string, ColorStyle> = {
     dot: "bg-info",
     item: "text-info focus:bg-info/10 focus:text-info",
   },
+  upcoming: {
+    trigger: "border-info/40 bg-info/10 text-info",
+    dot: "bg-info",
+    item: "text-info focus:bg-info/10 focus:text-info",
+  },
   low: {
     trigger: "border-success/40 bg-success/10 text-success",
     dot: "bg-success",
@@ -86,6 +91,12 @@ export const workStatusOptions = [
 export const planStatusOptions = [
   { value: "draft", label: "Nháp" },
   { value: "active", label: "Đang chạy" },
+  { value: "done", label: "Hoàn thành" },
+  { value: "cancel", label: "Đã huỷ" },
+] as const;
+
+export const eventStatusOptions = [
+  { value: "upcoming", label: "Sắp diễn ra" },
   { value: "done", label: "Hoàn thành" },
   { value: "cancel", label: "Đã huỷ" },
 ] as const;

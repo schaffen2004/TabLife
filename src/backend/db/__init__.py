@@ -4,6 +4,7 @@ from .connection import get_conn, init_pool, close_pool
 from . import projects, stages, tasks
 from . import research
 from . import plans, plan_requirements
+from . import events
 from . import routines, finance
 
 __all__ = [
@@ -11,5 +12,6 @@ __all__ = [
     "projects", "stages", "tasks",
     "research",
     "plans", "plan_requirements",
+    "events",
     "routines", "finance",
 ]

@@ -4,12 +4,14 @@ import {
   type Project,
   type ProjectStage,
   type Plan,
+  type LifeEvent,
   type ResearchTopic,
   type Subtopic,
   type Routine,
   type Transaction,
 } from "./mock-data";
 import {
+  createEvent as createEventApi,
   createPlan as createPlanApi,
   createProject as createProjectApi,
   createResearch as createResearchApi,
@@ -18,6 +20,7 @@ import {
   createSubtopic as createSubtopicApi,
   createTask as createTaskApi,
   createTransaction as createTransactionApi,
+  deleteEvent as deleteEventApi,
   deletePlan as deletePlanApi,
   deleteProject as deleteProjectApi,
   deleteResearch as deleteResearchApi,
@@ -26,6 +29,7 @@ import {
   deleteSubtopic as deleteSubtopicApi,
   deleteTask as deleteTaskApi,
   deleteTransaction as deleteTransactionApi,
+  fetchEvents,
   fetchPlans,
   fetchProjects,
   fetchResearch,
@@ -33,6 +37,7 @@ import {
   fetchTasks,
   fetchTransactions,
   toggleRoutineCheckin,
+  updateEvent as updateEventApi,
   updatePlan as updatePlanApi,
   updateProject as updateProjectApi,
   updateResearch as updateResearchApi,
@@ -46,6 +51,7 @@ type Counters = {
   task: number;
   project: number;
   plan: number;
+  event: number;
   research: number;
   routine: number;
   transaction: number;
@@ -55,6 +61,7 @@ interface State {
   tasks: Task[];
   projects: Project[];
   plans: Plan[];
+  events: LifeEvent[];
   research: ResearchTopic[];
   routines: Routine[];
   transactions: Transaction[];
@@ -90,6 +97,9 @@ interface State {
   addPlan: (plan: Omit<Plan, "id">) => void;
   updatePlan: (id: number, patch: Partial<Plan>) => void;
   deletePlan: (id: number) => void;
+  addEvent: (event: Omit<LifeEvent, "id">) => Promise<void>;
+  updateEvent: (id: number, patch: Partial<LifeEvent>) => Promise<void>;
+  deleteEvent: (id: number) => Promise<void>;
   addResearch: (topic: Omit<ResearchTopic, "id" | "subtopics">) => void;
   updateResearch: (id: number, patch: Partial<ResearchTopic>) => void;
   deleteResearch: (id: number) => void;
@@ -103,6 +113,7 @@ const initialCounters: Counters = {
   task: 1,
   project: 1,
   plan: 1,
+  event: 1,
   research: 1,
   routine: 1,
   transaction: 1,
@@ -131,6 +142,7 @@ function buildInitialState() {
     tasks: [] as Task[],
     projects: [] as Project[],
     plans: [] as Plan[],
+    events: [] as LifeEvent[],
     research: [] as ResearchTopic[],
     routines: [] as Routine[],
     transactions: [] as Transaction[],
@@ -146,6 +158,7 @@ function nextCounters(state: {
   tasks: Task[];
   projects: Project[];
   plans: Plan[];
+  events: LifeEvent[];
   research: ResearchTopic[];
   routines: Routine[];
   transactions: Transaction[];
@@ -154,6 +167,7 @@ function nextCounters(state: {
     task: Math.max(0, ...state.tasks.map((item) => item.id)) + 1,
     project: Math.max(0, ...state.projects.map((item) => item.id)) + 1,
     plan: Math.max(0, ...state.plans.map((item) => item.id)) + 1,
+    event: Math.max(0, ...state.events.map((item) => item.id)) + 1,
     research: Math.max(0, ...state.research.map((item) => item.id)) + 1,
     routine: Math.max(0, ...state.routines.map((item) => item.id)) + 1,
     transaction: Math.max(0, ...state.transactions.map((item) => item.id)) + 1,
@@ -168,10 +182,11 @@ export const useStore = create<State>()((set, get) => ({
   loadData: async () => {
     set({ isLoading: true, error: undefined });
     try {
-      const [projects, tasks, plans, research, routines, transactions] = await Promise.all([
+      const [projects, tasks, plans, events, research, routines, transactions] = await Promise.all([
         fetchProjects(),
         fetchTasks(),
         fetchPlans(),
+        fetchEvents(),
         fetchResearch(),
         fetchRoutines(),
         fetchTransactions(),
@@ -181,6 +196,7 @@ export const useStore = create<State>()((set, get) => ({
         tasks,
         projects: updateProjectsWithTasks(projects, tasks),
         plans,
+        events,
         research,
         routines,
         transactions,
@@ -427,6 +443,34 @@ export const useStore = create<State>()((set, get) => ({
     await deletePlanApi(id);
     set((state) => ({
       plans: state.plans.filter((plan) => plan.id !== id),
+    }));
+  },
+
+  addEvent: async (event) => {
+    const createdEvent = await createEventApi(event);
+    set((state) => ({
+      events: [...state.events, createdEvent].sort((a, b) =>
+        a.date === b.date ? a.startTime.localeCompare(b.startTime) : a.date.localeCompare(b.date),
+      ),
+      counters: { ...state.counters, event: Math.max(state.counters.event, createdEvent.id + 1) },
+    }));
+  },
+
+  updateEvent: async (id, patch) => {
+    const updatedEvent = await updateEventApi(id, patch);
+    set((state) => ({
+      events: state.events
+        .map((event) => (event.id === id ? updatedEvent : event))
+        .sort((a, b) =>
+          a.date === b.date ? a.startTime.localeCompare(b.startTime) : a.date.localeCompare(b.date),
+        ),
+    }));
+  },
+
+  deleteEvent: async (id) => {
+    await deleteEventApi(id);
+    set((state) => ({
+      events: state.events.filter((event) => event.id !== id),
     }));
   },
 

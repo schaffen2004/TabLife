@@ -23,6 +23,7 @@ import {
   CartesianGrid,
 } from "recharts";
 import { toast } from "sonner";
+import { chartTooltipProps } from "@/lib/utils";
 
 export const Route = createFileRoute("/routine")({
   head: () => ({
@@ -196,11 +197,7 @@ function RoutinePage() {
                 />
                 <Tooltip
                   formatter={(value) => [`${value}%`, "Hoàn thành"]}
-                  contentStyle={{
-                    background: "var(--card)",
-                    border: "1px solid var(--border)",
-                    borderRadius: 12,
-                  }}
+                  {...chartTooltipProps}
                 />
                 <Line
                   type="monotone"

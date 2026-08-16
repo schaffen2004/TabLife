@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
-import { Plus, Search, Target, Trash2, Pencil } from "lucide-react";
+import { Check, Plus, Search, Target, Trash2, Pencil } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -108,11 +108,31 @@ function milestoneProgress(requirements: PlanRequirement[]): {
 }
 
 function milestoneDotClass(milestone: PlanRequirement): string {
-  if (milestone.status === "done") return "border-success bg-success";
-  if (milestone.status === "cancel") return "border-border bg-muted";
-  if (isOverdue(milestone)) return "border-destructive bg-destructive";
-  if (milestone.status === "in_progress") return "border-primary bg-primary";
+  if (milestone.status === "done") return "border-success bg-success text-white";
+  if (milestone.status === "cancel") return "border-border bg-muted text-muted-foreground";
+  if (isOverdue(milestone)) return "border-destructive bg-destructive text-destructive-foreground";
+  if (milestone.status === "in_progress") return "border-info bg-background";
   return "border-border bg-background";
+}
+
+function MilestoneDot({
+  milestone,
+  className,
+}: {
+  milestone: PlanRequirement;
+  className?: string;
+}) {
+  return (
+    <span
+      className={cn(
+        "grid place-items-center rounded-full border-2",
+        milestoneDotClass(milestone),
+        className,
+      )}
+    >
+      {milestone.status === "done" && <Check className="h-[60%] w-[60%]" strokeWidth={3} />}
+    </span>
+  );
 }
 
 function milestonePositions(milestones: PlanRequirement[]): number[] {
@@ -166,9 +186,7 @@ function MilestoneTrack({ requirements }: { requirements: PlanRequirement[] }) {
           style={{ left: trackOffset(positions[index]) }}
           title={`${milestone.name} · ${formatViDateFull(milestone.dueAt)}`}
         >
-          <span
-            className={cn("h-6 w-6 rounded-full border-2 shadow-sm", milestoneDotClass(milestone))}
-          />
+          <MilestoneDot milestone={milestone} className="h-6 w-6 shadow-sm" />
           <span className="mt-1 max-w-16 truncate text-[10px] text-muted-foreground">
             {formatViDate(milestone.dueAt)}
           </span>
@@ -199,11 +217,9 @@ function MilestoneTimeline({
             {index < milestones.length - 1 && (
               <span className="absolute left-[9px] top-5 h-[calc(100%-8px)] w-px bg-border" />
             )}
-            <span
-              className={cn(
-                "relative z-10 mt-0.5 h-[18px] w-[18px] shrink-0 rounded-full border-2",
-                milestoneDotClass(milestone),
-              )}
+            <MilestoneDot
+              milestone={milestone}
+              className="relative z-10 mt-0.5 h-[18px] w-[18px] shrink-0"
             />
             <div className="min-w-0 flex-1">
               <div className="flex items-start justify-between gap-2">
