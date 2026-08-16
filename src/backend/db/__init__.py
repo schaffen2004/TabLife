@@ -5,6 +5,7 @@ from . import projects, stages, tasks
 from . import research
 from . import plans, plan_requirements
 from . import events
+from . import notes
 from . import routines, finance
 
 __all__ = [
@@ -13,5 +14,6 @@ __all__ = [
     "research",
     "plans", "plan_requirements",
     "events",
+    "notes",
     "routines", "finance",
 ]

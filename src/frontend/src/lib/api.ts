@@ -1,5 +1,6 @@
 import type {
   LifeEvent,
+  Note,
   Plan,
   PlanRequirement,
   Project,
@@ -115,6 +116,15 @@ type BackendEvent = {
   status: LifeEvent["status"];
 };
 
+type BackendNote = {
+  note_id: number;
+  title: string;
+  content: string;
+  pinned: boolean;
+  created_at: string;
+  updated_at: string;
+};
+
 type BackendRequirement = {
   requirement_id: number;
   name: string;
@@ -158,10 +168,12 @@ export type BackendSettings = {
   daily_routine_report: boolean;
   finance_alert: boolean;
   schedule_for_tomorrow: boolean;
+  upcoming_event: boolean;
   today_task_time: string;
   daily_routine_report_time: string;
   finance_report_time: string;
   schedule_for_tomorrow_time: string;
+  upcoming_event_time: string;
   timezone: string;
   language: string;
   chat_id: number | string;
@@ -309,6 +321,16 @@ function toEvent(event: BackendEvent): LifeEvent {
   };
 }
 
+function toNote(note: BackendNote): Note {
+  return {
+    id: note.note_id,
+    title: note.title,
+    content: note.content || "",
+    pinned: Boolean(note.pinned),
+    updatedAt: note.updated_at,
+  };
+}
+
 function getWeekHistory(checkins: BackendRoutineCheckin[]): boolean[] {
   const today = new Date();
   const monday = new Date(today);
@@ -420,6 +442,11 @@ export async function fetchPlans(): Promise<Plan[]> {
 export async function fetchEvents(): Promise<LifeEvent[]> {
   const events = await apiRequest<BackendEvent[]>("/events");
   return events.map(toEvent);
+}
+
+export async function fetchNotes(): Promise<Note[]> {
+  const notes = await apiRequest<BackendNote[]>("/notes");
+  return notes.map(toNote);
 }
 
 export async function fetchRoutines(): Promise<Routine[]> {
@@ -819,6 +846,34 @@ export async function updateEvent(eventId: number, patch: Partial<LifeEvent>): P
 
 export async function deleteEvent(eventId: number): Promise<void> {
   await apiRequest(`/events/${eventId}`, { method: "DELETE" });
+}
+
+export async function createNote(payload: Omit<Note, "id" | "updatedAt">): Promise<Note> {
+  const note = await apiRequest<BackendNote>("/notes", {
+    method: "POST",
+    body: JSON.stringify({
+      title: payload.title,
+      content: payload.content,
+      pinned: payload.pinned,
+    }),
+  });
+  return toNote(note);
+}
+
+export async function updateNote(noteId: number, patch: Partial<Note>): Promise<Note> {
+  const note = await apiRequest<BackendNote>(`/notes/${noteId}`, {
+    method: "PATCH",
+    body: JSON.stringify({
+      title: patch.title,
+      content: patch.content,
+      pinned: patch.pinned,
+    }),
+  });
+  return toNote(note);
+}
+
+export async function deleteNote(noteId: number): Promise<void> {
+  await apiRequest(`/notes/${noteId}`, { method: "DELETE" });
 }
 
 export async function createRoutine(name: string): Promise<Routine> {

@@ -223,6 +223,20 @@ CREATE TABLE IF NOT EXISTS events (
 
 CREATE INDEX IF NOT EXISTS events_event_date_idx ON events (event_date, start_time);
 
+-- ─── NOTES ────────────────────────────────────────────────────────────────────
+
+CREATE TABLE IF NOT EXISTS notes (
+  note_id     BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+  title       TEXT   NOT NULL,
+  content     TEXT   NOT NULL DEFAULT '',
+  pinned      BOOLEAN NOT NULL DEFAULT FALSE,
+  created_at  TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at  TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  CONSTRAINT notes_title_not_blank CHECK (btrim(title) <> '')
+);
+
+CREATE INDEX IF NOT EXISTS notes_updated_at_idx ON notes (pinned DESC, updated_at DESC);
+
 -- ─── ROUTINES ─────────────────────────────────────────────────────────────────
 
 CREATE TABLE IF NOT EXISTS routines (

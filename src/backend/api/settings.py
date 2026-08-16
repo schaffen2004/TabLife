@@ -21,10 +21,12 @@ class SettingsUpdate(BaseModel):
     daily_routine_report: bool | None = None
     finance_alert: bool | None = None
     schedule_for_tomorrow: bool | None = None
+    upcoming_event: bool | None = None
     today_task_time: str | None = None
     daily_routine_report_time: str | None = None
     finance_report_time: str | None = None
     schedule_for_tomorrow_time: str | None = None
+    upcoming_event_time: str | None = None
     timezone: str | None = None
     language: str | None = None
     chat_id: int | str | None = None

@@ -76,6 +76,14 @@ export interface LifeEvent {
   status: EventStatus;
 }
 
+export interface Note {
+  id: number;
+  title: string;
+  content: string;
+  pinned: boolean;
+  updatedAt: string;
+}
+
 export interface Subtopic {
   id: number;
   name: string;
@@ -434,6 +442,23 @@ export const seedEvents: LifeEvent[] = [
     date: "2026-08-16",
     startTime: "18:00",
     status: "done",
+  },
+];
+
+export const seedNotes: Note[] = [
+  {
+    id: 1,
+    title: "Ý tưởng TabLife",
+    content: "Thêm quick capture cho note và event ngay từ tổng quan.",
+    pinned: true,
+    updatedAt: "2026-08-16T08:00:00+00:00",
+  },
+  {
+    id: 2,
+    title: "Checklist họp tuần",
+    content: "Review task trễ hạn, tiến độ project, và event tuần tới.",
+    pinned: false,
+    updatedAt: "2026-08-15T10:00:00+00:00",
   },
 ];
 

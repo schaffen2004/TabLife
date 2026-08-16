@@ -5,6 +5,7 @@ import {
   type ProjectStage,
   type Plan,
   type LifeEvent,
+  type Note,
   type ResearchTopic,
   type Subtopic,
   type Routine,
@@ -12,6 +13,7 @@ import {
 } from "./mock-data";
 import {
   createEvent as createEventApi,
+  createNote as createNoteApi,
   createPlan as createPlanApi,
   createProject as createProjectApi,
   createResearch as createResearchApi,
@@ -21,6 +23,7 @@ import {
   createTask as createTaskApi,
   createTransaction as createTransactionApi,
   deleteEvent as deleteEventApi,
+  deleteNote as deleteNoteApi,
   deletePlan as deletePlanApi,
   deleteProject as deleteProjectApi,
   deleteResearch as deleteResearchApi,
@@ -30,6 +33,7 @@ import {
   deleteTask as deleteTaskApi,
   deleteTransaction as deleteTransactionApi,
   fetchEvents,
+  fetchNotes,
   fetchPlans,
   fetchProjects,
   fetchResearch,
@@ -38,6 +42,7 @@ import {
   fetchTransactions,
   toggleRoutineCheckin,
   updateEvent as updateEventApi,
+  updateNote as updateNoteApi,
   updatePlan as updatePlanApi,
   updateProject as updateProjectApi,
   updateResearch as updateResearchApi,
@@ -52,6 +57,7 @@ type Counters = {
   project: number;
   plan: number;
   event: number;
+  note: number;
   research: number;
   routine: number;
   transaction: number;
@@ -62,6 +68,7 @@ interface State {
   projects: Project[];
   plans: Plan[];
   events: LifeEvent[];
+  notes: Note[];
   research: ResearchTopic[];
   routines: Routine[];
   transactions: Transaction[];
@@ -100,6 +107,9 @@ interface State {
   addEvent: (event: Omit<LifeEvent, "id">) => Promise<void>;
   updateEvent: (id: number, patch: Partial<LifeEvent>) => Promise<void>;
   deleteEvent: (id: number) => Promise<void>;
+  addNote: (note: Omit<Note, "id" | "updatedAt">) => Promise<void>;
+  updateNote: (id: number, patch: Partial<Note>) => Promise<void>;
+  deleteNote: (id: number) => Promise<void>;
   addResearch: (topic: Omit<ResearchTopic, "id" | "subtopics">) => void;
   updateResearch: (id: number, patch: Partial<ResearchTopic>) => void;
   deleteResearch: (id: number) => void;
@@ -114,6 +124,7 @@ const initialCounters: Counters = {
   project: 1,
   plan: 1,
   event: 1,
+  note: 1,
   research: 1,
   routine: 1,
   transaction: 1,
@@ -143,6 +154,7 @@ function buildInitialState() {
     projects: [] as Project[],
     plans: [] as Plan[],
     events: [] as LifeEvent[],
+    notes: [] as Note[],
     research: [] as ResearchTopic[],
     routines: [] as Routine[],
     transactions: [] as Transaction[],
@@ -154,11 +166,19 @@ function updateProjectsWithTasks(projects: Project[], tasks: Task[]) {
   return applyProjectProgress(projects, tasks);
 }
 
+function sortNotes(notes: Note[]): Note[] {
+  return [...notes].sort((a, b) => {
+    if (a.pinned !== b.pinned) return a.pinned ? -1 : 1;
+    return b.updatedAt.localeCompare(a.updatedAt);
+  });
+}
+
 function nextCounters(state: {
   tasks: Task[];
   projects: Project[];
   plans: Plan[];
   events: LifeEvent[];
+  notes: Note[];
   research: ResearchTopic[];
   routines: Routine[];
   transactions: Transaction[];
@@ -168,6 +188,7 @@ function nextCounters(state: {
     project: Math.max(0, ...state.projects.map((item) => item.id)) + 1,
     plan: Math.max(0, ...state.plans.map((item) => item.id)) + 1,
     event: Math.max(0, ...state.events.map((item) => item.id)) + 1,
+    note: Math.max(0, ...state.notes.map((item) => item.id)) + 1,
     research: Math.max(0, ...state.research.map((item) => item.id)) + 1,
     routine: Math.max(0, ...state.routines.map((item) => item.id)) + 1,
     transaction: Math.max(0, ...state.transactions.map((item) => item.id)) + 1,
@@ -182,21 +203,24 @@ export const useStore = create<State>()((set, get) => ({
   loadData: async () => {
     set({ isLoading: true, error: undefined });
     try {
-      const [projects, tasks, plans, events, research, routines, transactions] = await Promise.all([
-        fetchProjects(),
-        fetchTasks(),
-        fetchPlans(),
-        fetchEvents(),
-        fetchResearch(),
-        fetchRoutines(),
-        fetchTransactions(),
-      ]);
+      const [projects, tasks, plans, events, notes, research, routines, transactions] =
+        await Promise.all([
+          fetchProjects(),
+          fetchTasks(),
+          fetchPlans(),
+          fetchEvents(),
+          fetchNotes(),
+          fetchResearch(),
+          fetchRoutines(),
+          fetchTransactions(),
+        ]);
 
       const nextState = {
         tasks,
         projects: updateProjectsWithTasks(projects, tasks),
         plans,
         events,
+        notes: sortNotes(notes),
         research,
         routines,
         transactions,
@@ -471,6 +495,28 @@ export const useStore = create<State>()((set, get) => ({
     await deleteEventApi(id);
     set((state) => ({
       events: state.events.filter((event) => event.id !== id),
+    }));
+  },
+
+  addNote: async (note) => {
+    const createdNote = await createNoteApi(note);
+    set((state) => ({
+      notes: sortNotes([createdNote, ...state.notes]),
+      counters: { ...state.counters, note: Math.max(state.counters.note, createdNote.id + 1) },
+    }));
+  },
+
+  updateNote: async (id, patch) => {
+    const updatedNote = await updateNoteApi(id, patch);
+    set((state) => ({
+      notes: sortNotes(state.notes.map((note) => (note.id === id ? updatedNote : note))),
+    }));
+  },
+
+  deleteNote: async (id) => {
+    await deleteNoteApi(id);
+    set((state) => ({
+      notes: state.notes.filter((note) => note.id !== id),
     }));
   },
 

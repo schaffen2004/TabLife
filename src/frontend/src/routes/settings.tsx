@@ -37,10 +37,12 @@ type AppSettings = {
   daily_routine_report: boolean;
   finance_alert: boolean;
   schedule_for_tomorrow: boolean;
+  upcoming_event: boolean;
   today_task_time: string;
   daily_routine_report_time: string;
   finance_report_time: string;
   schedule_for_tomorrow_time: string;
+  upcoming_event_time: string;
   timezone: string;
   language: string;
   chat_id: number | string;
@@ -53,10 +55,12 @@ const defaultSettings: AppSettings = {
   daily_routine_report: false,
   finance_alert: false,
   schedule_for_tomorrow: false,
+  upcoming_event: false,
   today_task_time: "09:00",
   daily_routine_report_time: "23:00",
   finance_report_time: "20:00",
   schedule_for_tomorrow_time: "23:00",
+  upcoming_event_time: "08:00",
   timezone: "Asia/Ho_Chi_Minh",
   language: "vi",
   chat_id: "",
@@ -174,7 +178,7 @@ function NotificationOption({
       </div>
       <div className="flex flex-col gap-3 border-t pt-3 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex min-w-0 items-center gap-3">
-          <div className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-muted text-muted-foreground">
+          <div className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-muted text-white">
             <Clock className="h-4 w-4" />
           </div>
           <div className="min-w-0">
@@ -208,6 +212,7 @@ function normalizeSettings(settings: Partial<AppSettings>): AppSettings {
     finance_report_time: settings.finance_report_time || defaultSettings.finance_report_time,
     schedule_for_tomorrow_time:
       settings.schedule_for_tomorrow_time || defaultSettings.schedule_for_tomorrow_time,
+    upcoming_event_time: settings.upcoming_event_time || defaultSettings.upcoming_event_time,
     timezone: settings.timezone || defaultSettings.timezone,
     chat_id: String(settings.chat_id ?? ""),
     token: settings.token ?? "",
@@ -268,10 +273,12 @@ function SettingsPage() {
           daily_routine_report: nextSettings.daily_routine_report,
           finance_alert: nextSettings.finance_alert,
           schedule_for_tomorrow: nextSettings.schedule_for_tomorrow,
+          upcoming_event: nextSettings.upcoming_event,
           today_task_time: nextSettings.today_task_time,
           daily_routine_report_time: nextSettings.daily_routine_report_time,
           finance_report_time: nextSettings.finance_report_time,
           schedule_for_tomorrow_time: nextSettings.schedule_for_tomorrow_time,
+          upcoming_event_time: nextSettings.upcoming_event_time,
           timezone: nextSettings.timezone,
           language: nextSettings.language,
           chat_id: nextSettings.chat_id,
@@ -319,6 +326,7 @@ function SettingsPage() {
           daily_routine_report: false,
           finance_alert: false,
           schedule_for_tomorrow: false,
+          upcoming_event: false,
         };
 
     setSettings(nextSettings);
@@ -329,6 +337,7 @@ function SettingsPage() {
       daily_routine_report: nextSettings.daily_routine_report,
       finance_alert: nextSettings.finance_alert,
       schedule_for_tomorrow: nextSettings.schedule_for_tomorrow,
+      upcoming_event: nextSettings.upcoming_event,
     });
     if (!saved) {
       setSettings(previousSettings);
@@ -412,6 +421,18 @@ function SettingsPage() {
           timeDisabled={notificationDisabled || !settings.schedule_for_tomorrow}
           onCheckedChange={(checked) => updateSetting("schedule_for_tomorrow", checked, true)}
           onTimeChange={(value) => updateSetting("schedule_for_tomorrow_time", value)}
+        />
+        <NotificationOption
+          label="Event sắp đến"
+          hint={`Nhắc các event hôm nay lúc ${settings.upcoming_event_time}`}
+          checked={settings.upcoming_event}
+          disabled={isLoading || isSaving}
+          timeId="upcoming-event-time"
+          timeLabel="Giờ nhắc event"
+          timeValue={settings.upcoming_event_time}
+          timeDisabled={notificationDisabled || !settings.upcoming_event}
+          onCheckedChange={(checked) => updateSetting("upcoming_event", checked, true)}
+          onTimeChange={(value) => updateSetting("upcoming_event_time", value)}
         />
         <NotificationOption
           label="Daily routine"

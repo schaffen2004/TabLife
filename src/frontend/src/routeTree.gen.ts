@@ -15,6 +15,7 @@ import { Route as RoutineRouteImport } from './routes/routine'
 import { Route as ResearchRouteImport } from './routes/research'
 import { Route as ProjectsRouteImport } from './routes/projects'
 import { Route as PlansRouteImport } from './routes/plans'
+import { Route as NotesRouteImport } from './routes/notes'
 import { Route as FinanceRouteImport } from './routes/finance'
 import { Route as EventsRouteImport } from './routes/events'
 import { Route as IndexRouteImport } from './routes/index'
@@ -49,6 +50,11 @@ const PlansRoute = PlansRouteImport.update({
   path: '/plans',
   getParentRoute: () => rootRouteImport,
 } as any)
+const NotesRoute = NotesRouteImport.update({
+  id: '/notes',
+  path: '/notes',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const FinanceRoute = FinanceRouteImport.update({
   id: '/finance',
   path: '/finance',
@@ -69,6 +75,7 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/events': typeof EventsRoute
   '/finance': typeof FinanceRoute
+  '/notes': typeof NotesRoute
   '/plans': typeof PlansRoute
   '/projects': typeof ProjectsRoute
   '/research': typeof ResearchRoute
@@ -80,6 +87,7 @@ export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/events': typeof EventsRoute
   '/finance': typeof FinanceRoute
+  '/notes': typeof NotesRoute
   '/plans': typeof PlansRoute
   '/projects': typeof ProjectsRoute
   '/research': typeof ResearchRoute
@@ -92,6 +100,7 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/events': typeof EventsRoute
   '/finance': typeof FinanceRoute
+  '/notes': typeof NotesRoute
   '/plans': typeof PlansRoute
   '/projects': typeof ProjectsRoute
   '/research': typeof ResearchRoute
@@ -105,6 +114,7 @@ export interface FileRouteTypes {
     | '/'
     | '/events'
     | '/finance'
+    | '/notes'
     | '/plans'
     | '/projects'
     | '/research'
@@ -116,6 +126,7 @@ export interface FileRouteTypes {
     | '/'
     | '/events'
     | '/finance'
+    | '/notes'
     | '/plans'
     | '/projects'
     | '/research'
@@ -127,6 +138,7 @@ export interface FileRouteTypes {
     | '/'
     | '/events'
     | '/finance'
+    | '/notes'
     | '/plans'
     | '/projects'
     | '/research'
@@ -139,6 +151,7 @@ export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   EventsRoute: typeof EventsRoute
   FinanceRoute: typeof FinanceRoute
+  NotesRoute: typeof NotesRoute
   PlansRoute: typeof PlansRoute
   ProjectsRoute: typeof ProjectsRoute
   ResearchRoute: typeof ResearchRoute
@@ -191,6 +204,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof PlansRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/notes': {
+      id: '/notes'
+      path: '/notes'
+      fullPath: '/notes'
+      preLoaderRoute: typeof NotesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/finance': {
       id: '/finance'
       path: '/finance'
@@ -219,6 +239,7 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   EventsRoute: EventsRoute,
   FinanceRoute: FinanceRoute,
+  NotesRoute: NotesRoute,
   PlansRoute: PlansRoute,
   ProjectsRoute: ProjectsRoute,
   ResearchRoute: ResearchRoute,

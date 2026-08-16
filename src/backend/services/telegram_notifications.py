@@ -21,6 +21,7 @@ DEFAULT_TIMEZONE = os.environ.get("TABLIFE_TIMEZONE", "Asia/Ho_Chi_Minh")
 DEFAULT_DEADLINE_DAY_TIME = time(9, 0)
 DEFAULT_ROUTINE_TIME = time(23, 0)
 DEFAULT_FINANCE_TIME = time(20, 0)
+DEFAULT_EVENT_TIME = time(8, 0)
 
 logger = logging.getLogger(__name__)
 
@@ -32,10 +33,12 @@ class TelegramSettings:
     daily_routine_report: bool = False
     finance_alert: bool = False
     schedule_for_tomorrow: bool = False
+    upcoming_event: bool = False
     today_task_time: time = DEFAULT_DEADLINE_DAY_TIME
     daily_routine_report_time: time = DEFAULT_ROUTINE_TIME
     finance_report_time: time = DEFAULT_FINANCE_TIME
     schedule_for_tomorrow_time: time = DEFAULT_ROUTINE_TIME
+    upcoming_event_time: time = DEFAULT_EVENT_TIME
     timezone: ZoneInfo = ZoneInfo(DEFAULT_TIMEZONE)
     chat_id: str = ""
     token: str = ""
@@ -72,6 +75,7 @@ def load_telegram_settings() -> TelegramSettings:
         daily_routine_report=bool(raw.get("daily_routine_report", False)),
         finance_alert=bool(raw.get("finance_alert", False)),
         schedule_for_tomorrow=bool(raw.get("schedule_for_tomorrow", False)),
+        upcoming_event=bool(raw.get("upcoming_event", False)),
         today_task_time=_parse_time(raw.get("today_task_time"), DEFAULT_DEADLINE_DAY_TIME),
         daily_routine_report_time=_parse_time(
             raw.get("daily_routine_report_time"),
@@ -82,6 +86,7 @@ def load_telegram_settings() -> TelegramSettings:
             raw.get("schedule_for_tomorrow_time"),
             DEFAULT_ROUTINE_TIME,
         ),
+        upcoming_event_time=_parse_time(raw.get("upcoming_event_time"), DEFAULT_EVENT_TIME),
         timezone=get_timezone(raw),
         chat_id=str(os.environ.get("TELEGRAM_CHAT_ID") or raw.get("chat_id", "")),
         token=str(os.environ.get("TELEGRAM_BOT_TOKEN") or raw.get("token", "")),
@@ -121,6 +126,10 @@ def _routine_state_key(target_date: date, notify_time: time) -> str:
 
 def _tomorrow_tasks_state_key(target_date: date, notify_time: time) -> str:
     return f"deadline-tomorrow:{target_date.isoformat()}:{notify_time.strftime('%H:%M')}"
+
+
+def _upcoming_events_state_key(target_date: date, notify_time: time) -> str:
+    return f"event-upcoming:{target_date.isoformat()}:{notify_time.strftime('%H:%M')}"
 
 
 def _mark_suppressed_if_due(state_key: str, notify_time: time) -> None:
@@ -211,6 +220,24 @@ def _get_tomorrow_tasks(target_date: date) -> list[dict[str, Any]]:
             return list(cur.fetchall())
 
 
+def _get_upcoming_events(target_date: date) -> list[dict[str, Any]]:
+    from db.connection import get_conn
+
+    with get_conn() as conn:
+        with conn.cursor() as cur:
+            cur.execute(
+                """
+                SELECT event_id, name, location, event_date, start_time, end_time
+                FROM events
+                WHERE event_date = %s
+                  AND status = 'upcoming'
+                ORDER BY start_time, event_id
+                """,
+                (target_date,),
+            )
+            return list(cur.fetchall())
+
+
 def _get_incomplete_routines(target_date: date) -> list[dict[str, Any]]:
     from db.connection import get_conn
 
@@ -275,6 +302,15 @@ def _format_date_value(value: Any) -> str:
     if isinstance(value, date):
         return value.isoformat()
     return str(value)
+
+
+def _format_time_value(value: Any) -> str:
+    if isinstance(value, datetime):
+        return value.strftime("%H:%M")
+    if isinstance(value, time):
+        return value.strftime("%H:%M")
+    text = str(value or "").strip()
+    return text[:5] if text else ""
 
 
 def _log_due_notification(
@@ -357,6 +393,33 @@ def _build_tomorrow_tasks_message(tasks: list[dict[str, Any]], target_date: date
 
     if len(tasks) > 10:
         lines.append(f"More tasks: {len(tasks) - 10}")
+
+    return "\n".join(lines)
+
+
+def _build_upcoming_events_message(events: list[dict[str, Any]], target_date: date) -> str:
+    lines = [
+        "📅 Event sắp đến",
+        f"Date: {target_date.isoformat()}",
+        f"Upcoming events: {len(events)}",
+        "",
+    ]
+
+    for index, event in enumerate(events[:10], start=1):
+        start = _format_time_value(event["start_time"])
+        end = _format_time_value(event.get("end_time"))
+        time_range = f"{start} – {end}" if end else start
+        lines.append(f"{index}. {event['name']}")
+        lines.append(f"   Time: {time_range}")
+        location = (event.get("location") or "").strip()
+        if location:
+            lines.append(f"   Location: {location}")
+
+    if not events:
+        lines.append("No upcoming events for today.")
+
+    if len(events) > 10:
+        lines.append(f"More events: {len(events) - 10}")
 
     return "\n".join(lines)
 
@@ -530,6 +593,39 @@ def run_tomorrow_tasks_notification(now: datetime | None = None) -> int:
     return 1
 
 
+def run_upcoming_events_notification(now: datetime | None = None) -> int:
+    settings = load_telegram_settings()
+    if not settings.notification or not settings.upcoming_event:
+        return 0
+    if not settings.token or not settings.chat_id:
+        return 0
+
+    now = now or datetime.now(settings.timezone)
+    if now < _today_reminder_time(now, settings.upcoming_event_time):
+        return 0
+
+    target_date = now.date()
+    state_key = _upcoming_events_state_key(target_date, settings.upcoming_event_time)
+    state = _load_state()
+    if state.get(state_key, "").startswith("sent:"):
+        return 0
+
+    events = _get_upcoming_events(target_date)
+
+    message = _build_upcoming_events_message(events, target_date)
+    _log_due_notification(
+        "upcoming_event",
+        target_date,
+        settings.upcoming_event_time,
+        message,
+        item_count=len(events),
+    )
+    send_telegram_message(message, settings)
+    state[state_key] = f"sent:{now.isoformat(timespec='seconds')}"
+    _save_state(state)
+    return 1
+
+
 def run_finance_notification(now: datetime | None = None) -> int:
     settings = load_telegram_settings()
     if not settings.notification or not settings.finance_alert:
@@ -568,6 +664,7 @@ def run_all_notifications(now: datetime | None = None) -> int:
     return (
         run_today_tasks_notification(now)
         + run_tomorrow_tasks_notification(now)
+        + run_upcoming_events_notification(now)
         + run_routine_notification(now)
         + run_finance_notification(now)
     )
