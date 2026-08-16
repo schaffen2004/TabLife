@@ -7,13 +7,13 @@ plans(plan_id, name, goal, estimated_time, status, created_at, updated_at)
 
 Requirements schema
 -------------------
-plan_requirements(requirement_id, plan_id, name, status, position)
+plan_requirements(requirement_id, plan_id, name, status, position, due_at)
 """
 
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import date, datetime
 from typing import Optional
 
 from db.connection import get_conn
@@ -28,6 +28,7 @@ class PlanRequirement:
     name: str
     status: str     # 'new' | 'in_progress' | 'done' | 'cancel'
     position: int
+    due_at: Optional[date] = None
 
 
 @dataclass
@@ -43,7 +44,10 @@ class Plan:
 
 
 def _row_to_requirement(row: dict) -> PlanRequirement:
-    return PlanRequirement(**row)
+    allowed = {"requirement_id", "plan_id", "name", "status", "position", "due_at"}
+    data = {key: row[key] for key in allowed if key in row}
+    data.setdefault("due_at", None)
+    return PlanRequirement(**data)
 
 
 def _row_to_plan(row: dict) -> Plan:
@@ -68,10 +72,10 @@ def get_all(include_requirements: bool = False) -> list[Plan]:
                     "SELECT * FROM plan_requirements WHERE plan_id = ANY(%s) ORDER BY position",
                     (plan_ids,),
                 )
-            reqs_by_plan: dict[int, list[PlanRequirement]] = {}
-            for r in cur.fetchall():
-                req = _row_to_requirement(r)
-                reqs_by_plan.setdefault(req.plan_id, []).append(req)
+                reqs_by_plan: dict[int, list[PlanRequirement]] = {}
+                for r in cur.fetchall():
+                    req = _row_to_requirement(r)
+                    reqs_by_plan.setdefault(req.plan_id, []).append(req)
             for plan in plans:
                 plan.requirements = reqs_by_plan.get(plan.plan_id, [])
 
@@ -167,10 +171,14 @@ def get_requirements(plan_id: int) -> list[PlanRequirement]:
 def _next_req_position(plan_id: int, conn) -> int:
     with conn.cursor() as cur:
         cur.execute(
-            "SELECT COALESCE(MAX(position), 0) + 1 FROM plan_requirements WHERE plan_id = %s",
+            """
+            SELECT COALESCE(MAX(position), 0) + 1 AS next_position
+            FROM plan_requirements
+            WHERE plan_id = %s
+            """,
             (plan_id,),
         )
-        return cur.fetchone()["coalesce"]
+        return int(cur.fetchone()["next_position"])
 
 
 def add_requirement(
@@ -179,6 +187,7 @@ def add_requirement(
     name: str,
     status: str = "new",
     position: Optional[int] = None,
+    due_at: Optional[date] = None,
 ) -> PlanRequirement:
     """Add a requirement to a plan. Position is auto-assigned if omitted."""
     with get_conn() as conn:
@@ -186,18 +195,18 @@ def add_requirement(
         with conn.cursor() as cur:
             cur.execute(
                 """
-                INSERT INTO plan_requirements (plan_id, name, status, position)
-                VALUES (%s, %s, %s, %s)
+                INSERT INTO plan_requirements (plan_id, name, status, position, due_at)
+                VALUES (%s, %s, %s, %s, %s)
                 RETURNING *
                 """,
-                (plan_id, name, status, pos),
+                (plan_id, name, status, pos, due_at),
             )
             return _row_to_requirement(cur.fetchone())
 
 
 def update_requirement(requirement_id: int, **fields) -> Optional[PlanRequirement]:
-    """Update name, status, or position of a requirement."""
-    allowed = {"name", "status", "position"}
+    """Update name, status, position, or due date of a requirement."""
+    allowed = {"name", "status", "position", "due_at"}
     updates = {k: v for k, v in fields.items() if k in allowed}
     if not updates:
         with get_conn() as conn:

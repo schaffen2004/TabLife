@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   Plus,
   Search,
@@ -235,10 +235,33 @@ function ProjectsPage() {
   const [editingStage, setEditingStage] = useState<ProjectStage | null>(null);
   const [openTaskId, setOpenTaskId] = useState<number | null>(null);
   const [query, setQuery] = useState("");
+  const [isEditingProject, setIsEditingProject] = useState(false);
+  const [projectDraft, setProjectDraft] = useState({
+    name: "",
+    description: "",
+    status: "new" as ProjectStatus,
+    startAt: "",
+    deadline: "",
+  });
 
   const selected = projects.find((p) => p.id === selectedId) ?? null;
   const openTask = tasks.find((t) => t.id === openTaskId) ?? null;
   const filtered = projects.filter((p) => p.name.toLowerCase().includes(query.toLowerCase()));
+
+  const resetProjectDraft = (project: Project) => {
+    setProjectDraft({
+      name: project.name,
+      description: project.description,
+      status: project.status,
+      startAt: project.startAt,
+      deadline: project.deadline,
+    });
+  };
+
+  useEffect(() => {
+    setIsEditingProject(false);
+    if (selected) resetProjectDraft(selected);
+  }, [selectedId]);
 
   return (
     <div className="space-y-5 p-4 lg:p-6">
@@ -336,13 +359,97 @@ function ProjectsPage() {
             <>
               <SheetHeader>
                 <div className="flex items-center gap-2">
-                  <StatusBadge status={selected.status} />
+                  <StatusBadge status={isEditingProject ? projectDraft.status : selected.status} />
                   <span className="font-mono text-xs text-muted-foreground">
                     {formatId(selected.id)}
                   </span>
                 </div>
-                <SheetTitle className="font-display text-2xl">{selected.name}</SheetTitle>
-                <SheetDescription>{selected.description}</SheetDescription>
+                {isEditingProject ? (
+                  <div className="space-y-3 pt-2">
+                    <div className="space-y-1.5">
+                      <Label>Tên project</Label>
+                      <Input
+                        value={projectDraft.name}
+                        onChange={(e) => setProjectDraft({ ...projectDraft, name: e.target.value })}
+                      />
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label>Mô tả</Label>
+                      <Textarea
+                        rows={3}
+                        value={projectDraft.description}
+                        onChange={(e) =>
+                          setProjectDraft({ ...projectDraft, description: e.target.value })
+                        }
+                      />
+                    </div>
+                    <div className="grid grid-cols-2 gap-3">
+                      <div className="space-y-1.5">
+                        <Label>Trạng thái</Label>
+                        <ColoredStatusSelect
+                          value={projectDraft.status}
+                          onValueChange={(status) =>
+                            setProjectDraft({ ...projectDraft, status: status as ProjectStatus })
+                          }
+                          options={workStatusOptions}
+                        />
+                      </div>
+                      <div className="space-y-1.5">
+                        <Label>Bắt đầu</Label>
+                        <Input
+                          type="date"
+                          value={projectDraft.startAt}
+                          onChange={(e) =>
+                            setProjectDraft({ ...projectDraft, startAt: e.target.value })
+                          }
+                        />
+                      </div>
+                      <div className="space-y-1.5 col-span-2">
+                        <Label>Deadline</Label>
+                        <Input
+                          type="date"
+                          value={projectDraft.deadline}
+                          onChange={(e) =>
+                            setProjectDraft({ ...projectDraft, deadline: e.target.value })
+                          }
+                        />
+                      </div>
+                    </div>
+                    <div className="flex gap-2">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => {
+                          resetProjectDraft(selected);
+                          setIsEditingProject(false);
+                        }}
+                      >
+                        Huỷ
+                      </Button>
+                      <Button
+                        size="sm"
+                        onClick={async () => {
+                          await updateProject(selected.id, projectDraft);
+                          toast.success("Đã lưu project");
+                          setIsEditingProject(false);
+                        }}
+                      >
+                        Lưu
+                      </Button>
+                    </div>
+                  </div>
+                ) : (
+                  <>
+                    <SheetTitle className="font-display text-2xl">{selected.name}</SheetTitle>
+                    <SheetDescription>{selected.description || "—"}</SheetDescription>
+                    <div className="pt-2">
+                      <Button size="sm" onClick={() => setIsEditingProject(true)}>
+                        <Pencil className="h-3.5 w-3.5" />
+                        Chỉnh sửa
+                      </Button>
+                    </div>
+                  </>
+                )}
               </SheetHeader>
 
               <div className="mt-6 space-y-6">
@@ -353,30 +460,19 @@ function ProjectsPage() {
                       projectStatusColors[selected.status].tile,
                     )}
                   >
-                    <p className="mb-1 text-xs text-muted-foreground">Trạng thái</p>
-                    <ProjectStatusSelect
-                      value={selected.status}
-                      onChange={(status) => updateProject(selected.id, { status })}
-                      className="h-8 w-full justify-between shadow-none"
-                    />
+                    <p className="text-xs text-muted-foreground">Trạng thái</p>
+                    <p className="mt-1 font-medium">
+                      {workStatusOptions.find((option) => option.value === selected.status)?.label ??
+                        selected.status}
+                    </p>
                   </div>
                   <div className="rounded-xl bg-muted/50 p-3">
                     <p className="text-xs text-muted-foreground">Bắt đầu</p>
                     <p className="font-medium">{selected.startAt}</p>
                   </div>
                   <div className="rounded-xl bg-muted/50 p-3">
-                    <p className="mb-1 text-xs text-muted-foreground">Deadline</p>
-                    <Input
-                      type="date"
-                      value={selected.deadline}
-                      onChange={async (e) => {
-                        await useStore
-                          .getState()
-                          .updateProject(selected.id, { deadline: e.target.value });
-                        toast.success("Đã cập nhật deadline");
-                      }}
-                      className="h-8 border-0 bg-transparent p-0 font-medium shadow-none focus-visible:ring-0"
-                    />
+                    <p className="text-xs text-muted-foreground">Deadline</p>
+                    <p className="font-medium">{selected.deadline}</p>
                   </div>
                 </div>
 

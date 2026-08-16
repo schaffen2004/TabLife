@@ -92,6 +92,34 @@ function SectionCard({
   );
 }
 
+function SettingRow({
+  label,
+  hint,
+  htmlFor,
+  controlClassName,
+  children,
+}: {
+  label: string;
+  hint?: string;
+  htmlFor?: string;
+  controlClassName?: string;
+  children: ReactNode;
+}) {
+  return (
+    <div className="flex flex-col gap-3 rounded-xl border bg-card p-3 sm:flex-row sm:items-center sm:justify-between">
+      <div className="min-w-0">
+        {htmlFor ? (
+          <Label htmlFor={htmlFor}>{label}</Label>
+        ) : (
+          <p className="text-sm font-medium">{label}</p>
+        )}
+        {hint ? <p className="text-xs text-muted-foreground">{hint}</p> : null}
+      </div>
+      <div className={controlClassName ?? "w-full sm:w-auto"}>{children}</div>
+    </div>
+  );
+}
+
 function ToggleRow({
   label,
   hint,
@@ -106,12 +134,66 @@ function ToggleRow({
   onCheckedChange: (checked: boolean) => void;
 }) {
   return (
-    <div className="flex items-center justify-between gap-4 rounded-xl border bg-card p-3">
-      <div className="min-w-0">
-        <p className="text-sm font-medium">{label}</p>
-        {hint && <p className="text-xs text-muted-foreground">{hint}</p>}
-      </div>
+    <SettingRow label={label} hint={hint} controlClassName="shrink-0">
       <Switch checked={checked} disabled={disabled} onCheckedChange={onCheckedChange} />
+    </SettingRow>
+  );
+}
+
+function NotificationOption({
+  label,
+  hint,
+  checked,
+  disabled,
+  timeId,
+  timeLabel,
+  timeValue,
+  timeDisabled,
+  onCheckedChange,
+  onTimeChange,
+}: {
+  label: string;
+  hint?: string;
+  checked: boolean;
+  disabled?: boolean;
+  timeId: string;
+  timeLabel: string;
+  timeValue: string;
+  timeDisabled?: boolean;
+  onCheckedChange: (checked: boolean) => void;
+  onTimeChange: (value: string) => void;
+}) {
+  return (
+    <div className="space-y-3 rounded-xl border bg-card p-3">
+      <div className="flex items-center justify-between gap-4">
+        <div className="min-w-0">
+          <p className="text-sm font-medium">{label}</p>
+          {hint ? <p className="text-xs text-muted-foreground">{hint}</p> : null}
+        </div>
+        <Switch checked={checked} disabled={disabled} onCheckedChange={onCheckedChange} />
+      </div>
+      <div className="flex flex-col gap-3 border-t pt-3 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex min-w-0 items-center gap-3">
+          <div className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-muted text-muted-foreground">
+            <Clock className="h-4 w-4" />
+          </div>
+          <div className="min-w-0">
+            <Label htmlFor={timeId}>{timeLabel}</Label>
+            <p className="text-xs text-muted-foreground">
+              Thay đổi sẽ được lưu trực tiếp vào backend.
+            </p>
+          </div>
+        </div>
+        <div className="w-full sm:w-40">
+          <Input
+            id={timeId}
+            type="time"
+            value={timeValue}
+            disabled={timeDisabled}
+            onChange={(event) => onTimeChange(event.target.value)}
+          />
+        </div>
+      </div>
     </div>
   );
 }
@@ -307,100 +389,54 @@ function SettingsPage() {
           disabled={isLoading || isSaving}
           onCheckedChange={updateNotification}
         />
-        <ToggleRow
+        <NotificationOption
           label="Task làm hôm nay"
           hint={`Mô phỏng nhắc việc lúc ${settings.today_task_time}`}
           checked={settings.today_task}
           disabled={isLoading || isSaving}
+          timeId="today-task-time"
+          timeLabel="Giờ nhắc task hôm nay"
+          timeValue={settings.today_task_time}
+          timeDisabled={notificationDisabled || !settings.today_task}
           onCheckedChange={(checked) => updateSetting("today_task", checked, true)}
+          onTimeChange={(value) => updateSetting("today_task_time", value)}
         />
-        <div className="flex flex-col gap-3 rounded-xl border bg-card p-3 sm:flex-row sm:items-center sm:justify-between">
-          <div className="flex min-w-0 items-center gap-3">
-            <div className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-muted text-muted-foreground">
-              <Clock className="h-4 w-4" />
-            </div>
-            <div className="min-w-0">
-              <Label htmlFor="deadline-day-time">Giờ nhắc task hôm nay</Label>
-              <p className="text-xs text-muted-foreground">
-                Thay đổi sẽ được lưu trực tiếp vào backend.
-              </p>
-            </div>
-          </div>
-          <div className="w-full sm:w-40">
-            <Input
-              id="deadline-day-time"
-              type="time"
-              value={settings.today_task_time}
-              disabled={notificationDisabled || !settings.today_task}
-              onChange={(event) => updateSetting("today_task_time", event.target.value)}
-            />
-          </div>
-        </div>
-        <ToggleRow
+        <NotificationOption
           label="Schedule for tomorrow"
           hint={`Gửi lịch ngày mai lúc ${settings.schedule_for_tomorrow_time}`}
           checked={settings.schedule_for_tomorrow}
           disabled={isLoading || isSaving}
+          timeId="schedule-for-tomorrow-time"
+          timeLabel="Giờ gửi lịch ngày mai"
+          timeValue={settings.schedule_for_tomorrow_time}
+          timeDisabled={notificationDisabled || !settings.schedule_for_tomorrow}
           onCheckedChange={(checked) => updateSetting("schedule_for_tomorrow", checked, true)}
+          onTimeChange={(value) => updateSetting("schedule_for_tomorrow_time", value)}
         />
-        <div className="flex flex-col gap-3 rounded-xl border bg-card p-3 sm:flex-row sm:items-center sm:justify-between">
-          <div className="flex min-w-0 items-center gap-3">
-            <div className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-muted text-muted-foreground">
-              <Clock className="h-4 w-4" />
-            </div>
-            <div className="min-w-0">
-              <Label htmlFor="schedule-for-tomorrow-time">Giờ gửi lịch ngày mai</Label>
-              <p className="text-xs text-muted-foreground">
-                Thay đổi sẽ được lưu trực tiếp vào backend.
-              </p>
-            </div>
-          </div>
-          <div className="w-full sm:w-40">
-            <Input
-              id="schedule-for-tomorrow-time"
-              type="time"
-              value={settings.schedule_for_tomorrow_time}
-              disabled={notificationDisabled || !settings.schedule_for_tomorrow}
-              onChange={(event) => updateSetting("schedule_for_tomorrow_time", event.target.value)}
-            />
-          </div>
-        </div>
-        <ToggleRow
+        <NotificationOption
           label="Daily routine"
           hint={`Nhắc cập nhật mỗi ngày lúc ${settings.daily_routine_report_time}`}
           checked={settings.daily_routine_report}
           disabled={isLoading || isSaving}
+          timeId="daily-routine-report-time"
+          timeLabel="Giờ nhắc routine"
+          timeValue={settings.daily_routine_report_time}
+          timeDisabled={notificationDisabled || !settings.daily_routine_report}
           onCheckedChange={(checked) => updateSetting("daily_routine_report", checked, true)}
+          onTimeChange={(value) => updateSetting("daily_routine_report_time", value)}
         />
-        <div className="rounded-xl border bg-card p-3">
-          <div className="space-y-2">
-            <Label>Giờ nhắc routine</Label>
-            <Input
-              type="time"
-              value={settings.daily_routine_report_time}
-              disabled={notificationDisabled || !settings.daily_routine_report}
-              onChange={(event) => updateSetting("daily_routine_report_time", event.target.value)}
-            />
-          </div>
-        </div>
-        <ToggleRow
+        <NotificationOption
           label="Cảnh báo tài chính"
           hint={`Mô phỏng kiểm tra lúc ${settings.finance_report_time}`}
           checked={settings.finance_alert}
           disabled={isLoading || isSaving}
+          timeId="finance-report-time"
+          timeLabel="Giờ kiểm tra tài chính"
+          timeValue={settings.finance_report_time}
+          timeDisabled={notificationDisabled || !settings.finance_alert}
           onCheckedChange={(checked) => updateSetting("finance_alert", checked, true)}
+          onTimeChange={(value) => updateSetting("finance_report_time", value)}
         />
-        <div className="rounded-xl border bg-card p-3">
-          <div className="space-y-2">
-            <Label>Giờ kiểm tra tài chính</Label>
-            <Input
-              type="time"
-              value={settings.finance_report_time}
-              disabled={notificationDisabled || !settings.finance_alert}
-              onChange={(event) => updateSetting("finance_report_time", event.target.value)}
-            />
-          </div>
-        </div>
       </SectionCard>
 
       <SectionCard
@@ -408,25 +444,27 @@ function SettingsPage() {
         title="Telegram UI"
         description="Cấu hình Telegram được lấy và lưu qua API"
       >
-        <div className="grid gap-4 sm:grid-cols-2">
-          <div className="space-y-2">
-            <Label>Bot Token</Label>
-            <Input
-              type="password"
-              value={settings.token}
-              onChange={(event) => updateSetting("token", event.target.value)}
-              placeholder="1234567:ABC-DEF..."
-            />
-          </div>
-          <div className="space-y-2">
-            <Label>Chat ID</Label>
-            <Input
-              value={String(settings.chat_id)}
-              onChange={(event) => updateSetting("chat_id", event.target.value)}
-              placeholder="123456789"
-            />
-          </div>
-        </div>
+        <SettingRow
+          htmlFor="telegram-bot-token"
+          label="Bot Token"
+          controlClassName="w-full sm:max-w-xs"
+        >
+          <Input
+            id="telegram-bot-token"
+            type="password"
+            value={settings.token}
+            onChange={(event) => updateSetting("token", event.target.value)}
+            placeholder="1234567:ABC-DEF..."
+          />
+        </SettingRow>
+        <SettingRow htmlFor="telegram-chat-id" label="Chat ID" controlClassName="w-full sm:max-w-xs">
+          <Input
+            id="telegram-chat-id"
+            value={String(settings.chat_id)}
+            onChange={(event) => updateSetting("chat_id", event.target.value)}
+            placeholder="123456789"
+          />
+        </SettingRow>
         <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border bg-muted/30 p-3">
           <div className="flex items-center gap-2">
             <span
@@ -456,31 +494,28 @@ function SettingsPage() {
       </SectionCard>
 
       <SectionCard icon={Palette} title="Giao diện" description="Ngôn ngữ">
-        <div className="grid gap-4 sm:grid-cols-2">
-          <div className="space-y-2">
-            <Label>Ngôn ngữ</Label>
-            <Select
-              value={settings.language}
-              onValueChange={(value) => updateSetting("language", value)}
-            >
-              <SelectTrigger>
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="vi">Tiếng Việt</SelectItem>
-                <SelectItem value="en">English</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-          <div className="space-y-2">
-            <Label>Múi giờ</Label>
-            <Input
-              value={settings.timezone}
-              onChange={(event) => updateSetting("timezone", event.target.value)}
-              placeholder="Asia/Ho_Chi_Minh"
-            />
-          </div>
-        </div>
+        <SettingRow label="Ngôn ngữ" controlClassName="w-full sm:max-w-xs">
+          <Select
+            value={settings.language}
+            onValueChange={(value) => updateSetting("language", value)}
+          >
+            <SelectTrigger>
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="vi">Tiếng Việt</SelectItem>
+              <SelectItem value="en">English</SelectItem>
+            </SelectContent>
+          </Select>
+        </SettingRow>
+        <SettingRow htmlFor="timezone" label="Múi giờ" controlClassName="w-full sm:max-w-xs">
+          <Input
+            id="timezone"
+            value={settings.timezone}
+            onChange={(event) => updateSetting("timezone", event.target.value)}
+            placeholder="Asia/Ho_Chi_Minh"
+          />
+        </SettingRow>
       </SectionCard>
 
       <div className="flex justify-end">

@@ -193,6 +193,7 @@ CREATE TABLE IF NOT EXISTS plan_requirements (
   name           TEXT   NOT NULL,
   status         work_status NOT NULL DEFAULT 'new',
   position       INTEGER NOT NULL,
+  due_at         DATE,
   CONSTRAINT plan_requirements_name_not_blank  CHECK (btrim(name) <> ''),
   CONSTRAINT plan_requirements_position_valid  CHECK (position > 0),
   UNIQUE (plan_id, position)

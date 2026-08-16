@@ -61,6 +61,7 @@ export interface PlanRequirement {
   id: number;
   name: string;
   status: WorkStatus;
+  dueAt?: string;
 }
 
 export interface Subtopic {
@@ -349,9 +350,9 @@ export const seedPlans: Plan[] = [
     name: "Ra mắt TabLife Beta",
     goal: "Có 100 user beta",
     requirements: [
-      { id: 1, name: "Hoàn thành MVP", status: "done" },
-      { id: 2, name: "Landing page", status: "in_progress" },
-      { id: 3, name: "Onboarding flow", status: "new" },
+      { id: 1, name: "Hoàn thành MVP", status: "done", dueAt: "2026-06-15" },
+      { id: 2, name: "Landing page", status: "in_progress", dueAt: "2026-07-20" },
+      { id: 3, name: "Onboarding flow", status: "new", dueAt: "2026-08-30" },
     ],
     estimatedTime: "8 tuần",
     status: "active",
@@ -362,8 +363,8 @@ export const seedPlans: Plan[] = [
     name: "Viết sách Productivity",
     goal: "Bản thảo 50.000 từ",
     requirements: [
-      { id: 1, name: "Outline 10 chương", status: "new" },
-      { id: 2, name: "Viết 1 chương/tuần", status: "new" },
+      { id: 1, name: "Outline 10 chương", status: "new", dueAt: "2026-09-01" },
+      { id: 2, name: "Viết 1 chương/tuần", status: "new", dueAt: "2026-11-24" },
     ],
     estimatedTime: "12 tuần",
     status: "draft",
@@ -373,9 +374,9 @@ export const seedPlans: Plan[] = [
     name: "Du lịch Nhật mùa thu",
     goal: "Chuyến đi 10 ngày",
     requirements: [
-      { id: 1, name: "Visa", status: "in_progress" },
-      { id: 2, name: "Vé máy bay", status: "new" },
-      { id: 3, name: "Khách sạn", status: "new" },
+      { id: 1, name: "Visa", status: "in_progress", dueAt: "2026-08-20" },
+      { id: 2, name: "Vé máy bay", status: "new", dueAt: "2026-09-01" },
+      { id: 3, name: "Khách sạn", status: "new", dueAt: "2026-09-15" },
     ],
     estimatedTime: "3 tháng chuẩn bị",
     status: "active",
@@ -385,8 +386,8 @@ export const seedPlans: Plan[] = [
     name: "Học thêm Rust",
     goal: "Build 1 CLI tool",
     requirements: [
-      { id: 1, name: "Đọc Rust Book", status: "in_progress" },
-      { id: 2, name: "Làm 3 project nhỏ", status: "new" },
+      { id: 1, name: "Đọc Rust Book", status: "in_progress", dueAt: "2026-08-31" },
+      { id: 2, name: "Làm 3 project nhỏ", status: "new", dueAt: "2026-10-15" },
     ],
     estimatedTime: "10 tuần",
     status: "draft",

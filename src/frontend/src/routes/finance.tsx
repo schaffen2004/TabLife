@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
-import { TrendingUp, TrendingDown, Wallet, PiggyBank, ArrowDownLeft, ArrowUpRight, Plus, Trash2 } from "lucide-react";
+import { TrendingUp, TrendingDown, Wallet, PiggyBank, ArrowDownLeft, ArrowUpRight, Plus, Trash2, Pencil } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -66,14 +66,17 @@ function categoryLabel(category: string) {
 }
 
 function TxDialog({ open, onOpenChange, defaultType, transaction }: { open: boolean; onOpenChange: (o: boolean) => void; defaultType: Transaction["type"]; transaction: Transaction | null }) {
-  const { addTransaction, updateTransaction } = useStore();
+  const { addTransaction, updateTransaction, deleteTransaction } = useStore();
   const today = new Date().toISOString().slice(0, 10);
+  const isCreating = !transaction;
+  const [isEditing, setIsEditing] = useState(isCreating);
   const [type, setType] = useState<"income" | "expense">(defaultType);
   const [amount, setAmount] = useState("");
   const [category, setCategory] = useState(defaultType === "income" ? "salary" : "food_and_drink");
   const [date, setDate] = useState(today);
   const [note, setNote] = useState("");
   const categoryOptions = type === "income" ? incomeCategories : expenseCategories;
+  const canEdit = isCreating || isEditing;
 
   useEffect(() => {
     if (transaction) {
@@ -82,6 +85,7 @@ function TxDialog({ open, onOpenChange, defaultType, transaction }: { open: bool
       setCategory(transaction.category);
       setDate(transaction.date);
       setNote(transaction.note ?? "");
+      setIsEditing(false);
       return;
     }
 
@@ -91,6 +95,7 @@ function TxDialog({ open, onOpenChange, defaultType, transaction }: { open: bool
       setCategory(defaultType === "income" ? "salary" : "food_and_drink");
       setDate(today);
       setNote("");
+      setIsEditing(true);
     }
   }, [defaultType, open, today, transaction]);
 
@@ -100,75 +105,158 @@ function TxDialog({ open, onOpenChange, defaultType, transaction }: { open: bool
     }
   }, [category, categoryOptions]);
 
+  const amountNumber = Number(amount.replace(/[^\d]/g, ""));
+
+  const cancelEdit = () => {
+    if (!transaction) {
+      onOpenChange(false);
+      return;
+    }
+    setType(transaction.type);
+    setAmount(formatAmountInput(String(transaction.amount)));
+    setCategory(transaction.category);
+    setDate(transaction.date);
+    setNote(transaction.note ?? "");
+    setIsEditing(false);
+  };
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-md">
-        <DialogHeader><DialogTitle>{transaction ? "Chỉnh sửa giao dịch" : "Thêm giao dịch"}</DialogTitle></DialogHeader>
-        <form
-          className="space-y-3"
-          onSubmit={async (e) => {
-            e.preventDefault();
-            const n = Number(amount.replace(/[^\d]/g, ""));
-            if (!n) return;
-            try {
-              if (transaction) {
-                await updateTransaction(
-                  transaction.id,
-                  { type, amount: n, category, date, note: note || undefined },
-                  transaction.type,
-                );
-                toast.success("Đã cập nhật giao dịch");
-              } else {
-                await addTransaction({ type, amount: n, category, date, note: note || undefined });
-                toast.success("Đã thêm giao dịch");
+        <DialogHeader>
+          <DialogTitle>
+            {isCreating ? "Thêm giao dịch" : canEdit ? "Chỉnh sửa giao dịch" : "Chi tiết giao dịch"}
+          </DialogTitle>
+        </DialogHeader>
+        {canEdit ? (
+          <form
+            className="space-y-3"
+            onSubmit={async (e) => {
+              e.preventDefault();
+              if (!amountNumber) return;
+              try {
+                if (transaction) {
+                  await updateTransaction(
+                    transaction.id,
+                    { type, amount: amountNumber, category, date, note: note || undefined },
+                    transaction.type,
+                  );
+                  toast.success("Đã cập nhật giao dịch");
+                  setIsEditing(false);
+                } else {
+                  await addTransaction({ type, amount: amountNumber, category, date, note: note || undefined });
+                  toast.success("Đã thêm giao dịch");
+                  onOpenChange(false);
+                }
+              } catch (error) {
+                toast.error(error instanceof Error ? error.message : "Không lưu được giao dịch");
               }
-              onOpenChange(false);
-            } catch (error) {
-              toast.error(error instanceof Error ? error.message : "Không lưu được giao dịch");
-            }
-          }}
-        >
-          <div className="grid grid-cols-2 gap-3">
+            }}
+          >
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1.5">
+                <Label>Loại</Label>
+                <Select value={type} onValueChange={(value) => setType(value as Transaction["type"])}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="income">Thu</SelectItem>
+                    <SelectItem value="expense">Chi</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-1.5">
+                <Label>Ngày</Label>
+                <Input type="date" value={date} onChange={(e) => setDate(e.target.value)} />
+              </div>
+            </div>
             <div className="space-y-1.5">
-              <Label>Loại</Label>
-              <Select value={type} onValueChange={(value) => setType(value as Transaction["type"])}>
+              <Label>Số tiền (VND)</Label>
+              <Input
+                inputMode="numeric"
+                value={amount}
+                onChange={(event) => setAmount(formatAmountInput(event.target.value))}
+                placeholder="VD: 500.000"
+                required
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label>Danh mục</Label>
+              <Select value={category} onValueChange={setCategory}>
                 <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="income">Thu</SelectItem>
-                  <SelectItem value="expense">Chi</SelectItem>
+                  {categoryOptions.map((c) => <SelectItem key={c.value} value={c.value}>{c.label}</SelectItem>)}
                 </SelectContent>
               </Select>
             </div>
             <div className="space-y-1.5">
-              <Label>Ngày</Label>
-              <Input type="date" value={date} onChange={(e) => setDate(e.target.value)} />
+              <Label>Ghi chú</Label>
+              <Input value={note} onChange={(e) => setNote(e.target.value)} placeholder="(tuỳ chọn)" />
             </div>
-          </div>
-          <div className="space-y-1.5">
-            <Label>Số tiền (VND)</Label>
-            <Input
-              inputMode="numeric"
-              value={amount}
-              onChange={(event) => setAmount(formatAmountInput(event.target.value))}
-              placeholder="VD: 500.000"
-              required
-            />
-          </div>
-          <div className="space-y-1.5">
-            <Label>Danh mục</Label>
-            <Select value={category} onValueChange={setCategory}>
-              <SelectTrigger><SelectValue /></SelectTrigger>
-              <SelectContent>
-                {categoryOptions.map((c) => <SelectItem key={c.value} value={c.value}>{c.label}</SelectItem>)}
-              </SelectContent>
-            </Select>
-          </div>
-          <div className="space-y-1.5">
-            <Label>Ghi chú</Label>
-            <Input value={note} onChange={(e) => setNote(e.target.value)} placeholder="(tuỳ chọn)" />
-          </div>
-          <DialogFooter><Button type="submit">{transaction ? "Lưu thay đổi" : "Thêm"}</Button></DialogFooter>
-        </form>
+            <DialogFooter className="gap-2 sm:justify-between">
+              {transaction ? (
+                <Button
+                  type="button"
+                  variant="ghost"
+                  className="text-destructive hover:bg-destructive/10 hover:text-destructive"
+                  onClick={async () => {
+                    try {
+                      await deleteTransaction(transaction.id, transaction.type);
+                      toast.success("Đã xoá");
+                      onOpenChange(false);
+                    } catch (error) {
+                      toast.error(error instanceof Error ? error.message : "Không xoá được giao dịch");
+                    }
+                  }}
+                >
+                  <Trash2 className="h-4 w-4" />
+                  Xoá
+                </Button>
+              ) : (
+                <span />
+              )}
+              <div className="flex gap-2">
+                <Button type="button" variant="outline" onClick={cancelEdit}>
+                  Huỷ
+                </Button>
+                <Button type="submit">{transaction ? "Lưu thay đổi" : "Thêm"}</Button>
+              </div>
+            </DialogFooter>
+          </form>
+        ) : (
+          <>
+            <div className="grid gap-3 text-sm sm:grid-cols-2">
+              <div>
+                <p className="text-xs font-medium uppercase text-muted-foreground">Loại</p>
+                <p className="mt-1">{type === "income" ? "Thu" : "Chi"}</p>
+              </div>
+              <div>
+                <p className="text-xs font-medium uppercase text-muted-foreground">Ngày</p>
+                <p className="mt-1">{date}</p>
+              </div>
+              <div>
+                <p className="text-xs font-medium uppercase text-muted-foreground">Số tiền</p>
+                <p className={`mt-1 font-medium ${type === "income" ? "text-success" : "text-destructive"}`}>
+                  {type === "income" ? "+" : "-"}{formatVND(amountNumber)}
+                </p>
+              </div>
+              <div>
+                <p className="text-xs font-medium uppercase text-muted-foreground">Danh mục</p>
+                <p className="mt-1">{categoryLabel(category)}</p>
+              </div>
+              <div className="sm:col-span-2">
+                <p className="text-xs font-medium uppercase text-muted-foreground">Ghi chú</p>
+                <p className="mt-1">{note || "—"}</p>
+              </div>
+            </div>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => onOpenChange(false)}>Đóng</Button>
+              <Button onClick={() => setIsEditing(true)}>
+                <Pencil className="h-4 w-4" />
+                Chỉnh sửa
+              </Button>
+            </DialogFooter>
+          </>
+        )}
       </DialogContent>
     </Dialog>
   );

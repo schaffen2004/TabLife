@@ -30,7 +30,7 @@ class ResearchUpdate(BaseModel):
 
 class SubtopicCreate(BaseModel):
     name: str
-    start_at: date
+    start_at: date = Field(default_factory=date.today)
     description: str = ""
     note: Optional[str] = None
     status: Literal["new", "in_progress", "done", "cancel"] = "new"
@@ -80,7 +80,10 @@ def list_subtopics(topic_id: int):
 @router.post("/{topic_id}/subtopics", status_code=201)
 def create_subtopic(topic_id: int, payload: SubtopicCreate):
     require_found(research.get_by_id(topic_id), "Research topic")
-    return to_json(research.create_subtopic(topic_id=topic_id, **payload_data(payload)))
+    data = payload_data(payload)
+    if data.get("position") is None:
+        data.pop("position", None)
+    return to_json(research.create_subtopic(topic_id=topic_id, **data))
 
 
 @router.put("/{topic_id}/subtopics/reorder")

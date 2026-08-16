@@ -174,16 +174,6 @@ def get_subtopic_by_id(subtopic_id: int) -> Optional[Subtopic]:
             return _row_to_subtopic(row) if row else None
 
 
-def _next_subtopic_position(topic_id: int, conn) -> int:
-    """Return the next available subtopic position for a topic."""
-    with conn.cursor() as cur:
-        cur.execute(
-            "SELECT COALESCE(MAX(position), 0) + 1 FROM subtopics WHERE topic_id = %s",
-            (topic_id,),
-        )
-        return cur.fetchone()["coalesce"]
-
-
 def create_subtopic(
     *,
     topic_id: int,
@@ -199,17 +189,30 @@ def create_subtopic(
     (MAX(position) + 1).
     """
     with get_conn() as conn:
-        pos = position if position is not None else _next_subtopic_position(topic_id, conn)
         with conn.cursor() as cur:
-            cur.execute(
-                """
-                INSERT INTO subtopics
-                    (topic_id, name, description, note, status, start_at, position)
-                VALUES (%s, %s, %s, %s, %s, %s, %s)
-                RETURNING *
-                """,
-                (topic_id, name, description, note, status, start_at, pos),
-            )
+            if position is None:
+                cur.execute(
+                    """
+                    INSERT INTO subtopics
+                        (topic_id, name, description, note, status, start_at, position)
+                    VALUES (
+                        %s, %s, %s, %s, %s, %s,
+                        (SELECT COALESCE(MAX(position), 0) + 1 FROM subtopics WHERE topic_id = %s)
+                    )
+                    RETURNING *
+                    """,
+                    (topic_id, name, description, note, status, start_at, topic_id),
+                )
+            else:
+                cur.execute(
+                    """
+                    INSERT INTO subtopics
+                        (topic_id, name, description, note, status, start_at, position)
+                    VALUES (%s, %s, %s, %s, %s, %s, %s)
+                    RETURNING *
+                    """,
+                    (topic_id, name, description, note, status, start_at, position),
+                )
             return _row_to_subtopic(cur.fetchone())
 
 

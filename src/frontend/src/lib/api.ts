@@ -69,7 +69,7 @@ type BackendTaskLink = {
 };
 
 type BackendResearch = {
-  research_topic_id: number;
+  topic_id: number;
   name: string;
   description: string;
   status: WorkStatus;
@@ -80,7 +80,6 @@ type BackendResearch = {
 type BackendSubtopic = {
   subtopic_id: number;
   topic_id?: number;
-  research_topic_id?: number;
   name: string;
   status: WorkStatus;
   start_at: string;
@@ -109,6 +108,7 @@ type BackendRequirement = {
   name: string;
   status: WorkStatus;
   position?: number;
+  due_at?: string | null;
 };
 
 type BackendRoutine = {
@@ -248,7 +248,7 @@ function toSubtopic(subtopic: BackendSubtopic, links: BackendSubtopicLink[]): Su
 
 function toResearch(topic: BackendResearch, subtopics: Subtopic[]): ResearchTopic {
   return {
-    id: topic.research_topic_id,
+    id: topic.topic_id,
     name: topic.name,
     description: topic.description || "",
     status: topic.status,
@@ -263,6 +263,7 @@ function toPlanRequirement(requirement: BackendRequirement): PlanRequirement {
     id: requirement.requirement_id,
     name: requirement.name,
     status: requirement.status,
+    dueAt: requirement.due_at ? requirement.due_at.slice(0, 10) : undefined,
   };
 }
 
@@ -366,7 +367,7 @@ export async function fetchResearch(): Promise<ResearchTopic[]> {
   return Promise.all(
     topics.map(async (topic) => {
       const subtopics = await apiRequest<BackendSubtopic[]>(
-        `/research/${topic.research_topic_id}/subtopics`,
+        `/research/${topic.topic_id}/subtopics`,
       );
       const withLinks = await Promise.all(
         subtopics.map(async (subtopic) => {
@@ -704,6 +705,7 @@ export async function createPlan(payload: Omit<Plan, "id">): Promise<Plan> {
         body: JSON.stringify({
           name: requirement.name,
           status: requirement.status,
+          due_at: requirement.dueAt || null,
         }),
       }),
     ),
@@ -734,6 +736,7 @@ export async function updatePlan(planId: number, patch: Partial<Plan>): Promise<
         body: JSON.stringify({
           name: requirement.name,
           status: requirement.status,
+          due_at: requirement.dueAt || null,
         }),
       });
     }

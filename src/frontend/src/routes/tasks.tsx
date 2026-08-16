@@ -19,7 +19,7 @@ import { StatusBadge } from "@/components/StatusBadge";
 import { ColoredStatusSelect, workStatusOptions } from "@/components/ColoredStatusSelect";
 import { TaskDialog } from "@/components/TaskDialog";
 import { useStore } from "@/lib/store";
-import { formatId, weeklyTaskProgress, type Task, type TaskStatus } from "@/lib/mock-data";
+import { formatId, type Task, type TaskStatus } from "@/lib/mock-data";
 import {
   Select,
   SelectContent,
@@ -325,35 +325,111 @@ function CalendarView({ onOpen }: { onOpen: (t: Task) => void }) {
   );
 }
 
+const WEEK_LABELS = ["T2", "T3", "T4", "T5", "T6", "T7", "CN"] as const;
+
+function pad2(value: number): string {
+  return String(value).padStart(2, "0");
+}
+
+function formatLocalDate(date: Date): string {
+  return `${date.getFullYear()}-${pad2(date.getMonth() + 1)}-${pad2(date.getDate())}`;
+}
+
+function taskDateKey(task: Task): string {
+  return task.deadline.slice(0, 10);
+}
+
+function startOfWeekMonday(date: Date): Date {
+  const start = new Date(date.getFullYear(), date.getMonth(), date.getDate());
+  start.setDate(start.getDate() - ((start.getDay() + 6) % 7));
+  return start;
+}
+
+function countChartStatuses(items: Task[]) {
+  return {
+    done: items.filter((task) => task.status === "done").length,
+    inProgress: items.filter((task) => task.status === "in_progress").length,
+    cancelled: items.filter((task) => task.status === "cancel").length,
+  };
+}
+
+function buildTaskChartData(tasks: Task[], range: "week" | "month" | "all") {
+  const now = new Date();
+
+  if (range === "week") {
+    const monday = startOfWeekMonday(now);
+    return WEEK_LABELS.map((day, index) => {
+      const current = new Date(monday);
+      current.setDate(monday.getDate() + index);
+      const key = formatLocalDate(current);
+      return { day, ...countChartStatuses(tasks.filter((task) => taskDateKey(task) === key)) };
+    });
+  }
+
+  if (range === "month") {
+    const year = now.getFullYear();
+    const month = now.getMonth();
+    const lastDay = new Date(year, month + 1, 0).getDate();
+    return [1, 2, 3, 4].map((week) => {
+      const startDay = (week - 1) * 7 + 1;
+      const endDay = week === 4 ? lastDay : week * 7;
+      const start = `${year}-${pad2(month + 1)}-${pad2(startDay)}`;
+      const end = `${year}-${pad2(month + 1)}-${pad2(endDay)}`;
+      return {
+        day: `Tuần ${week}`,
+        ...countChartStatuses(
+          tasks.filter((task) => {
+            const key = taskDateKey(task);
+            return key >= start && key <= end;
+          }),
+        ),
+      };
+    });
+  }
+
+  return Array.from({ length: 6 }, (_, index) => {
+    const monthDate = new Date(now.getFullYear(), now.getMonth() - 5 + index, 1);
+    const prefix = `${monthDate.getFullYear()}-${pad2(monthDate.getMonth() + 1)}`;
+    return {
+      day: `T${monthDate.getMonth() + 1}`,
+      ...countChartStatuses(tasks.filter((task) => taskDateKey(task).startsWith(prefix))),
+    };
+  });
+}
+
+function tasksInRange(tasks: Task[], range: "week" | "month" | "all"): Task[] {
+  if (range === "all") return tasks;
+
+  const now = new Date();
+  if (range === "week") {
+    const monday = startOfWeekMonday(now);
+    const sunday = new Date(monday);
+    sunday.setDate(monday.getDate() + 6);
+    const start = formatLocalDate(monday);
+    const end = formatLocalDate(sunday);
+    return tasks.filter((task) => {
+      const key = taskDateKey(task);
+      return key >= start && key <= end;
+    });
+  }
+
+  const prefix = `${now.getFullYear()}-${pad2(now.getMonth() + 1)}`;
+  return tasks.filter((task) => taskDateKey(task).startsWith(prefix));
+}
+
 function StatsView() {
   const tasks = useStore((s) => s.tasks);
   const [range, setRange] = useState<"week" | "month" | "all">("week");
+  const rangedTasks = useMemo(() => tasksInRange(tasks, range), [tasks, range]);
+  const chartData = useMemo(() => buildTaskChartData(tasks, range), [tasks, range]);
 
   const byStatus = columns.map((c) => ({
     name: c.title,
-    value: tasks.filter((t) => t.status === c.status).length,
+    value: rangedTasks.filter((t) => t.status === c.status).length,
   }));
   const colors = ["var(--info)", "var(--primary)", "var(--success)", "var(--muted-foreground)"];
-  const completion = tasks.length
-    ? Math.round((tasks.filter((t) => t.status === "done").length / tasks.length) * 100)
-    : 0;
-
-  const weekData = weeklyTaskProgress;
-  const monthData = [
-    { day: "Tuần 1", done: 18, cancelled: 3, inProgress: 12 },
-    { day: "Tuần 2", done: 22, cancelled: 2, inProgress: 14 },
-    { day: "Tuần 3", done: 19, cancelled: 4, inProgress: 11 },
-    { day: "Tuần 4", done: 25, cancelled: 1, inProgress: 9 },
-  ];
-  const allData = [
-    { day: "T1", done: 70, cancelled: 12, inProgress: 28 },
-    { day: "T2", done: 82, cancelled: 8, inProgress: 30 },
-    { day: "T3", done: 75, cancelled: 10, inProgress: 32 },
-    { day: "T4", done: 90, cancelled: 6, inProgress: 25 },
-    { day: "T5", done: 84, cancelled: 9, inProgress: 27 },
-    { day: "T6", done: 95, cancelled: 4, inProgress: 22 },
-  ];
-  const chartData = range === "week" ? weekData : range === "month" ? monthData : allData;
+  const doneCount = rangedTasks.filter((t) => t.status === "done").length;
+  const completion = rangedTasks.length ? Math.round((doneCount / rangedTasks.length) * 100) : 0;
   const chartTitle =
     range === "week"
       ? "Thống kê theo tuần"
@@ -364,7 +440,7 @@ function StatsView() {
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-end">
-        <Select value={range} onValueChange={(v) => setRange(v as any)}>
+        <Select value={range} onValueChange={(v) => setRange(v as "week" | "month" | "all")}>
           <SelectTrigger className="h-9 w-[180px]">
             <SelectValue />
           </SelectTrigger>
@@ -451,7 +527,7 @@ function StatsView() {
               <Progress value={completion} className="h-3 flex-1" />
             </div>
             <p className="mt-2 text-sm text-muted-foreground">
-              {tasks.filter((t) => t.status === "done").length}/{tasks.length} task đã hoàn thành
+              {doneCount}/{rangedTasks.length} task đã hoàn thành
             </p>
           </CardContent>
         </Card>

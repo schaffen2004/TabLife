@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from datetime import date
 from typing import Literal, Optional
 
 from fastapi import APIRouter
@@ -29,12 +30,14 @@ class RequirementCreate(BaseModel):
     name: str
     status: Literal["new", "in_progress", "done", "cancel"] = "new"
     position: Optional[int] = Field(default=None, gt=0)
+    due_at: Optional[date] = None
 
 
 class RequirementUpdate(BaseModel):
     name: Optional[str] = None
     status: Optional[Literal["new", "in_progress", "done", "cancel"]] = None
     position: Optional[int] = Field(default=None, gt=0)
+    due_at: Optional[date] = None
 
 
 @router.get("")

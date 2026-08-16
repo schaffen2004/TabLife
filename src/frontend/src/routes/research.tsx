@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
-import { Plus, Search, ExternalLink, Microscope, Trash2 } from "lucide-react";
+import { Plus, Search, ExternalLink, Microscope, Trash2, Pencil } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -172,8 +172,17 @@ function EditSubtopicDialog({
 }) {
   const { updateSubtopic, deleteSubtopic } = useStore();
   const [draft, setDraft] = useState<Subtopic | null>(subtopic);
-  useEffect(() => setDraft(subtopic), [subtopic]);
+  const [isEditing, setIsEditing] = useState(false);
+  useEffect(() => {
+    setDraft(subtopic);
+    setIsEditing(false);
+  }, [subtopic]);
   if (!draft) return null;
+
+  const cancelEdit = () => {
+    setDraft(subtopic);
+    setIsEditing(false);
+  };
 
   return (
     <Dialog open={!!subtopic} onOpenChange={(o) => !o && onClose()}>
@@ -182,85 +191,139 @@ function EditSubtopicDialog({
           <div className="flex items-center gap-2">
             <StatusBadge status={draft.status} />
           </div>
-          <DialogTitle className="pt-1 font-display text-xl">Chỉnh sửa Subtopic</DialogTitle>
+          <DialogTitle className="pt-1 font-display text-xl">
+            {isEditing ? "Chỉnh sửa Subtopic" : draft.name}
+          </DialogTitle>
         </DialogHeader>
-        <div className="space-y-3">
-          <div className="space-y-1.5">
-            <Label>Tên</Label>
-            <Input
-              value={draft.name}
-              onChange={(e) => setDraft({ ...draft, name: e.target.value })}
-            />
-          </div>
-          <div className="space-y-1.5">
-            <Label>Mô tả</Label>
-            <Textarea
-              rows={3}
-              value={draft.description}
-              onChange={(e) => setDraft({ ...draft, description: e.target.value })}
-            />
-          </div>
-          <div className="grid gap-3 sm:grid-cols-2">
+        {isEditing ? (
+          <div className="space-y-3">
             <div className="space-y-1.5">
-              <Label>Trạng thái</Label>
-              <ColoredStatusSelect
-                value={draft.status}
-                onValueChange={(v) => setDraft({ ...draft, status: v as Subtopic["status"] })}
-                options={workStatusOptions}
-              />
-            </div>
-            <div className="space-y-1.5">
-              <Label>Bắt đầu</Label>
+              <Label>Tên</Label>
               <Input
-                type="date"
-                value={draft.startAt}
-                onChange={(e) => setDraft({ ...draft, startAt: e.target.value })}
+                value={draft.name}
+                onChange={(e) => setDraft({ ...draft, name: e.target.value })}
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label>Mô tả</Label>
+              <Textarea
+                rows={3}
+                value={draft.description}
+                onChange={(e) => setDraft({ ...draft, description: e.target.value })}
+              />
+            </div>
+            <div className="grid gap-3 sm:grid-cols-2">
+              <div className="space-y-1.5">
+                <Label>Trạng thái</Label>
+                <ColoredStatusSelect
+                  value={draft.status}
+                  onValueChange={(v) => setDraft({ ...draft, status: v as Subtopic["status"] })}
+                  options={workStatusOptions}
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label>Bắt đầu</Label>
+                <Input
+                  type="date"
+                  value={draft.startAt}
+                  onChange={(e) => setDraft({ ...draft, startAt: e.target.value })}
+                />
+              </div>
+            </div>
+            <div className="space-y-1.5">
+              <Label>Link</Label>
+              <Input
+                value={draft.link ?? ""}
+                onChange={(e) => setDraft({ ...draft, link: e.target.value })}
+                placeholder="https://..."
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label>Ghi chú</Label>
+              <Textarea
+                rows={2}
+                value={draft.note ?? ""}
+                onChange={(e) => setDraft({ ...draft, note: e.target.value })}
               />
             </div>
           </div>
-          <div className="space-y-1.5">
-            <Label>Link</Label>
-            <Input
-              value={draft.link ?? ""}
-              onChange={(e) => setDraft({ ...draft, link: e.target.value })}
-              placeholder="https://..."
-            />
+        ) : (
+          <div className="space-y-3 text-sm">
+            <div>
+              <p className="text-xs font-medium uppercase text-muted-foreground">Mô tả</p>
+              <p className="mt-1 whitespace-pre-wrap">{draft.description || "—"}</p>
+            </div>
+            <div className="grid gap-3 sm:grid-cols-2">
+              <div>
+                <p className="text-xs font-medium uppercase text-muted-foreground">Bắt đầu</p>
+                <p className="mt-1">{draft.startAt || "—"}</p>
+              </div>
+              <div>
+                <p className="text-xs font-medium uppercase text-muted-foreground">Link</p>
+                {draft.link ? (
+                  <a
+                    href={draft.link}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="mt-1 block truncate text-primary underline-offset-4 hover:underline"
+                  >
+                    {draft.link}
+                  </a>
+                ) : (
+                  <p className="mt-1">—</p>
+                )}
+              </div>
+            </div>
+            <div>
+              <p className="text-xs font-medium uppercase text-muted-foreground">Ghi chú</p>
+              <p className="mt-1 whitespace-pre-wrap">{draft.note || "—"}</p>
+            </div>
           </div>
-          <div className="space-y-1.5">
-            <Label>Ghi chú</Label>
-            <Textarea
-              rows={2}
-              value={draft.note ?? ""}
-              onChange={(e) => setDraft({ ...draft, note: e.target.value })}
-            />
-          </div>
-        </div>
+        )}
         <DialogFooter className="gap-2 sm:justify-between">
-          <Button
-            variant="ghost"
-            className="text-destructive hover:bg-destructive/10 hover:text-destructive"
-            onClick={() => {
-              deleteSubtopic(researchId, draft.id);
-              toast.success("Đã xoá");
-              onClose();
-            }}
-          >
-            <Trash2 className="h-4 w-4" />
-            Xoá
-          </Button>
-          <div className="flex gap-2">
-            <Button variant="outline" onClick={onClose}>
-              Huỷ
-            </Button>
+          {isEditing ? (
             <Button
+              variant="ghost"
+              className="text-destructive hover:bg-destructive/10 hover:text-destructive"
               onClick={() => {
-                updateSubtopic(researchId, draft.id, draft);
-                toast.success("Đã lưu");
+                deleteSubtopic(researchId, draft.id);
+                toast.success("Đã xoá");
                 onClose();
               }}
             >
-              Lưu
+              <Trash2 className="h-4 w-4" />
+              Xoá
             </Button>
+          ) : (
+            <span />
+          )}
+          <div className="flex gap-2">
+            {isEditing ? (
+              <>
+                <Button variant="outline" onClick={cancelEdit}>
+                  Huỷ
+                </Button>
+                <Button
+                  onClick={() => {
+                    updateSubtopic(researchId, draft.id, draft);
+                    toast.success("Đã lưu");
+                    setIsEditing(false);
+                  }}
+                >
+                  Lưu
+                </Button>
+              </>
+            ) : (
+              <>
+                <Button variant="outline" onClick={onClose}>
+                  Đóng
+                </Button>
+                <Button onClick={() => setIsEditing(true)}>
+                  <Pencil className="h-4 w-4" />
+                  Chỉnh sửa
+                </Button>
+              </>
+            )}
           </div>
         </DialogFooter>
       </DialogContent>
@@ -275,10 +338,30 @@ function ResearchPage() {
   const [openNewTopic, setOpenNewTopic] = useState(false);
   const [openNewSub, setOpenNewSub] = useState(false);
   const [editingSub, setEditingSub] = useState<Subtopic | null>(null);
+  const [isEditingTopic, setIsEditingTopic] = useState(false);
+  const [topicDraft, setTopicDraft] = useState({
+    name: "",
+    description: "",
+    status: "new" as ResearchTopic["status"],
+    startAt: "",
+    link: "",
+  });
 
   // Keep openTopic in sync with store
   const liveTopic = openTopic ? (research.find((r) => r.id === openTopic.id) ?? null) : null;
   const liveTopicCompletion = liveTopic ? getCompletionPercentage(liveTopic.subtopics) : 0;
+
+  useEffect(() => {
+    setIsEditingTopic(false);
+    if (!liveTopic) return;
+    setTopicDraft({
+      name: liveTopic.name,
+      description: liveTopic.description,
+      status: liveTopic.status,
+      startAt: liveTopic.startAt,
+      link: liveTopic.link ?? "",
+    });
+  }, [liveTopic?.id]);
 
   const filtered = research.filter((r) => r.name.toLowerCase().includes(query.toLowerCase()));
 
@@ -364,17 +447,116 @@ function ResearchPage() {
                   <span className="font-mono text-xs text-muted-foreground">
                     {formatId(liveTopic.id)}
                   </span>
-                  <ColoredStatusSelect
-                    value={liveTopic.status}
-                    onValueChange={(v) =>
-                      updateResearch(liveTopic.id, { status: v as ResearchTopic["status"] })
-                    }
-                    options={workStatusOptions}
-                    className="h-7 w-[140px] text-xs"
-                  />
+                  {isEditingTopic ? (
+                    <ColoredStatusSelect
+                      value={topicDraft.status}
+                      onValueChange={(v) =>
+                        setTopicDraft({ ...topicDraft, status: v as ResearchTopic["status"] })
+                      }
+                      options={workStatusOptions}
+                      className="h-7 w-[140px] text-xs"
+                    />
+                  ) : (
+                    <StatusBadge status={liveTopic.status} />
+                  )}
                 </div>
-                <SheetTitle className="font-display text-2xl">{liveTopic.name}</SheetTitle>
-                <SheetDescription>{liveTopic.description}</SheetDescription>
+                {isEditingTopic ? (
+                  <div className="space-y-3 pt-2">
+                    <div className="space-y-1.5">
+                      <Label>Tên topic</Label>
+                      <Input
+                        value={topicDraft.name}
+                        onChange={(e) => setTopicDraft({ ...topicDraft, name: e.target.value })}
+                      />
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label>Mô tả</Label>
+                      <Textarea
+                        rows={3}
+                        value={topicDraft.description}
+                        onChange={(e) =>
+                          setTopicDraft({ ...topicDraft, description: e.target.value })
+                        }
+                      />
+                    </div>
+                    <div className="grid gap-3 sm:grid-cols-2">
+                      <div className="space-y-1.5">
+                        <Label>Bắt đầu</Label>
+                        <Input
+                          type="date"
+                          value={topicDraft.startAt}
+                          onChange={(e) => setTopicDraft({ ...topicDraft, startAt: e.target.value })}
+                        />
+                      </div>
+                      <div className="space-y-1.5">
+                        <Label>Link</Label>
+                        <Input
+                          value={topicDraft.link}
+                          onChange={(e) => setTopicDraft({ ...topicDraft, link: e.target.value })}
+                          placeholder="https://..."
+                        />
+                      </div>
+                    </div>
+                    <div className="flex gap-2">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => {
+                          setTopicDraft({
+                            name: liveTopic.name,
+                            description: liveTopic.description,
+                            status: liveTopic.status,
+                            startAt: liveTopic.startAt,
+                            link: liveTopic.link ?? "",
+                          });
+                          setIsEditingTopic(false);
+                        }}
+                      >
+                        Huỷ
+                      </Button>
+                      <Button
+                        size="sm"
+                        onClick={() => {
+                          updateResearch(liveTopic.id, {
+                            name: topicDraft.name,
+                            description: topicDraft.description,
+                            status: topicDraft.status,
+                            startAt: topicDraft.startAt,
+                            link: topicDraft.link || undefined,
+                          });
+                          toast.success("Đã lưu topic");
+                          setIsEditingTopic(false);
+                        }}
+                      >
+                        Lưu
+                      </Button>
+                    </div>
+                  </div>
+                ) : (
+                  <>
+                    <SheetTitle className="font-display text-2xl">{liveTopic.name}</SheetTitle>
+                    <SheetDescription>{liveTopic.description || "—"}</SheetDescription>
+                    <div className="flex flex-wrap gap-3 pt-1 text-xs text-muted-foreground">
+                      <span>📅 {liveTopic.startAt}</span>
+                      {liveTopic.link && (
+                        <a
+                          href={liveTopic.link}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="text-primary underline-offset-4 hover:underline"
+                        >
+                          {liveTopic.link}
+                        </a>
+                      )}
+                    </div>
+                    <div className="pt-2">
+                      <Button size="sm" onClick={() => setIsEditingTopic(true)}>
+                        <Pencil className="h-3.5 w-3.5" />
+                        Chỉnh sửa
+                      </Button>
+                    </div>
+                  </>
+                )}
                 <div className="space-y-2 pt-2">
                   <div className="flex items-center justify-between text-sm">
                     <span className="font-medium">Tiến độ hoàn thành</span>
